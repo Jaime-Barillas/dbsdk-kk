@@ -1,0 +1,4 @@
+[submodule "koka"]
+	path = lib/koka
+	url = https://github.com/koka-lang/koka
+	branch = master
