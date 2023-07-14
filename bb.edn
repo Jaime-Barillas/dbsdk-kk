@@ -1,0 +1,9 @@
+{:min-bb-version "1.3.179"
+ :paths ["scripts"]
+ :tasks
+ {
+  download-wabt
+  {:doc "Download the WABT tools"
+   :task download-wabt/-main}
+ }
+}
