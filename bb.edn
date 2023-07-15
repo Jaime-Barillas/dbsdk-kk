@@ -2,6 +2,13 @@
  :paths ["scripts"]
  :tasks
  {
+  cli
+  {:doc "Compile the dbsdk-kk cli"
+   :requires ([babashka.process :as proc])
+   :task (let [user-opts (or *command-line-args* ["-O2"])
+               koka-opts (concat user-opts ["-o" "dbsdk-kk" "main.kk"])]
+           (apply proc/shell {:dir "cli"} "koka" koka-opts))}
+
   copy-koka-libs
   {:doc "Copy necessary files from the Koka project"
    :task copy-koka-libs/-main}
