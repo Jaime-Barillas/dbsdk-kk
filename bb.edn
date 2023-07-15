@@ -2,6 +2,10 @@
  :paths ["scripts"]
  :tasks
  {
+  copy-koka-libs
+  {:doc "Copy necessary files from the Koka project"
+   :task copy-koka-libs/-main}
+
   download-wabt
   {:doc "Download the WABT tools"
    :task download-wabt/-main}

@@ -4,6 +4,9 @@
     [babashka.http-client :as http]
     [babashka.process :as proc]))
 
+;; Capture path to script when Babashka loads the file.
+(def ^:private self-path *file*)
+
 (defn- get-os []
   (let [os (System/getProperty "os.name")]
     (cond
@@ -15,7 +18,7 @@
   (let [version "1.0.33"
         os (get-os)
         download-url (str "https://github.com/WebAssembly/wabt/releases/download/" version "/wabt-" version "-" os ".tar.gz")
-        download-dir (-> *file* fs/parent fs/parent (fs/path "lib" "wabt"))
+        download-dir (-> self-path fs/parent fs/parent (fs/path "lib" "wabt"))
         archive (fs/path download-dir "wabt.tar.gz")
         extracted-dir (fs/path download-dir (str "wabt-" version))]
 
