@@ -22,7 +22,24 @@ fun compile-koka()
     Ok(result) -> println(result)
     Error -> ()
 
+fun compile-iso()
+  val makedisc = appdir() / "tools" / "makedisc"
+  val current-dir = cwd()
+  val proj-name = current-dir.stemname
+  val makedisc-cmd = join([makedisc.string,
+                           "--label",
+                           proj-name,
+                           "--output",
+                           (current-dir / (proj-name ++ ".iso")).string,
+                           (current-dir / "iso").string],
+                          " ")
+  println(makedisc-cmd)
+  match run-system-read(makedisc-cmd)
+    Ok(result) -> println(result)
+    Error -> ()
+
 fun main()
   with ctl throw-exn(exn)
     println(exn.message)
   compile-koka()
+  compile-iso()
