@@ -42,6 +42,11 @@ static inline kk_box_t kk_cctx_apply_linear( kk_std_core_types__cctx acc, kk_box
   #endif
 }
 
+// FIXME: What could be causing the generated C files to not correctly
+// determine that they include kklib.h and thus include the declaration
+// for kk_cctx_copy_apply below? To fix this, I've manually copied the
+// declaration here.
+kk_box_t kk_cctx_copy_apply(kk_box_t, kk_box_t*, kk_box_t, kk_context_t*);
 static inline kk_box_t kk_cctx_apply_nonlinear( kk_std_core_types__cctx acc, kk_box_t child, kk_context_t* ctx ) {
   // note: written like this for best codegen; be careful when rewriting.
   if (acc.holeptr != NULL && kk_block_is_unique(kk_ptr_unbox(acc.res,ctx))) { // no kk_likely seem slightly better
