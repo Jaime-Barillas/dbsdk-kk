@@ -27,14 +27,26 @@ fun compile-koka()
 fun wasm2wat()
   val wasm2wat = appdir() / "tools" / "wabt" / "wasm2wat"
   val current-dir = cwd()
-  val proj-name = current-dir.stemname
   val wasm2wat-cmd = join([wasm2wat.string,
-                           "--output=" ++ (current-dir / ".dbsdk-kk" / (proj-name ++ ".wat")).string,
+                           "--output=" ++ (current-dir / ".dbsdk-kk" / "main.wat").string,
                            (current-dir / ".dbsdk-kk" / "main.wasm").string],
                           " ")
   println(wasm2wat-cmd)
   ensure-dir(current-dir / ".dbsdk-kk")
   match run-system-read(wasm2wat-cmd)
+    Ok(result) -> println(result)
+    Error -> ()
+
+fun wat2wasm()
+  val wat2wasm = appdir() / "tools" / "wabt" / "wat2wasm"
+  val current-dir = cwd()
+  val wat2wasm-cmd = join([wat2wasm.string,
+                           "--output=" ++ (current-dir / "iso" / "main.wasm").string,
+                           (current-dir / ".dbsdk-kk" / "main.wat").string],
+                          " ")
+  println(wat2wasm-cmd)
+  ensure-dir(current-dir / "iso")
+  match run-system-read(wat2wasm-cmd)
     Ok(result) -> println(result)
     Error -> ()
 
@@ -58,5 +70,6 @@ fun main()
   with ctl throw-exn(exn)
     println(exn.message)
   compile-koka()
-  compile-iso()
   wasm2wat()
+  wat2wasm()
+  compile-iso()
