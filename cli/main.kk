@@ -1,3 +1,4 @@
+import std/os/dir     // ensure-dir
 //import std/os/env     // get-args
 import std/os/path    // appdir cwd stemname (/)
 import std/os/process // run-system-read
@@ -14,11 +15,26 @@ fun compile-koka()
                        "--sharedir=" ++ (app-dir / "sys").string,
                        "--builddir=" ++ (current-dir / ".koka").string,
                        "--include=" ++ (app-dir / "dbsdk").string,
-                       "--output=" ++ (current-dir / "iso" / "main").string,
+                       "--output=" ++ (current-dir / ".dbsdk-kk" / "main").string,
                        (current-dir / "main.kk").string],
                       " ")
   println(koka-cmd)
+  ensure-dir(current-dir / ".dbsdk-kk")
   match run-system-read(koka-cmd)
+    Ok(result) -> println(result)
+    Error -> ()
+
+fun wasm2wat()
+  val wasm2wat = appdir() / "tools" / "wabt" / "wasm2wat"
+  val current-dir = cwd()
+  val proj-name = current-dir.stemname
+  val wasm2wat-cmd = join([wasm2wat.string,
+                           "--output=" ++ (current-dir / ".dbsdk-kk" / (proj-name ++ ".wat")).string,
+                           (current-dir / ".dbsdk-kk" / "main.wasm").string],
+                          " ")
+  println(wasm2wat-cmd)
+  ensure-dir(current-dir / ".dbsdk-kk")
+  match run-system-read(wasm2wat-cmd)
     Ok(result) -> println(result)
     Error -> ()
 
@@ -43,3 +59,4 @@ fun main()
     println(exn.message)
   compile-koka()
   compile-iso()
+  wasm2wat()
