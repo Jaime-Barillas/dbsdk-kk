@@ -1,0 +1,7 @@
+**.exe
+**.wasm
+**.tar.gz
+**.nrepl-port
+
+**.koka/
+**iso/
