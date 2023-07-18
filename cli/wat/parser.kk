@@ -21,44 +21,45 @@ alias wat-parse = some<e> <parse-state|e>
 
 // Effects and handlers to manage "global" parser state.
 effect parse-state
-  val nxt-char: char
-  fun consume-char(): char
-  val parse-tree: list<module-field>
+  fun peek-char(): char
+  fun consume-char(): ()
+  fun get-parse-tree(): list<module-field>
   fun set-parse-tree(tree: list<module-field>): ()
+  ctl parse-error(message: string): ()
 
 // Starting rule.
-pub fun parse(input: string): div list<module-field>
-  // Initial values will be replaced below with the _real_ initial values.
-  val input-chars = ref(input.list)
-  val parse-tree' = ref([Module("")])
+// Todo: Remove console effect
+pub fun parse(input: string): <div,console> parse-result
+  var input-chars := input.list
+  var parse-tree: list<module-field> := []
   with handler
-    val nxt-char = head(!input-chars, no-char)
-    fun consume-char()
-      val ret = head(!input-chars, no-char)
-      input-chars := tail(!input-chars)
-      ret
-    val parse-tree = !parse-tree'
-    fun set-parse-tree(tree: list<module-field>) parse-tree' := tree
+    fun peek-char() head(input-chars, no-char)
+    fun consume-char() input-chars := tail(input-chars)
+    fun get-parse-tree() parse-tree
+    fun set-parse-tree(tree: list<module-field>) parse-tree := tree
+    ctl parse-error(message: string)
+      println("Parser State: " ++ input-chars.show-list(show))
+      ParseError(message)
 
-  parse-tree' := [parse-module-start()]
+  parse-tree := [parse-module-start()]
   // In Between stuff
-  parse-tree' := Cons(parse-module-end(), !parse-tree')
+  parse-tree := Cons(parse-module-end(), parse-tree)
 
-  reverse(!parse-tree')
-
-// TODO: Parse Errors
+  ParseOk(reverse(parse-tree))
 
 fun expect(ch: char): parse-state ()
-  if nxt-char == ch then
+  val to-be-consumed = peek-char()
+  if to-be-consumed == ch then
     consume-char()
-    return ()
+  else
+    parse-error("Expected " ++ ch.show ++ ", Got: " ++ to-be-consumed.show)
 
 fun expect-string(s: string): parse-state ()
   foreach(s) fn(ch)
     expect(ch)
 
 fun eat-whitespace(): wat-parse ()
-  while {nxt-char.is-white}
+  while {peek-char().is-white}
     consume-char()
     return ()
 
@@ -76,7 +77,9 @@ fun parse-module-end(): wat-parse module-field
 // For testing
 fun main()
   val input = get-args().head("(module )")
-  parse(input)
-    .map(show)
-    .join("\n")
-    .println
+  match parse(input)
+    ParseError(msg) -> println(msg)
+    ParseOk(tree) ->
+      tree.map(show)
+          .join("\n")
+          .println

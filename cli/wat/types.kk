@@ -30,6 +30,10 @@ pub type module-field
   Data(src: string)
   Other(src: string)
 
+pub value type parse-result
+  ParseOk(tree: list<module-field>)
+  ParseError(message: string)
+
 // Common Operations
 
 pub fun show(wtype: wasm-type): string
