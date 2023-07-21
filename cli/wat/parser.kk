@@ -31,7 +31,7 @@ struct func-type
 type module-field
   Module(src: string) // The module itself.
   Type(src: string, idx: int, typ: func-type)
-  Import(src: string)
+  Import(src: string, idx: int, name: string, typ-idx: int)
   Func(src: string)
   Other(src: string)
 
@@ -124,20 +124,79 @@ fun parse-type-field()
     (Just(ptyps), Nothing) -> save(Type(src, idx, Func-type(Just(ptyps), Nothing)))
     (Nothing, Just(rtyps)) -> save(Type(src, idx, Func-type(Nothing, Just(rtyps))))
     _ -> save(Type(src, idx, Func-type(Nothing, Nothing)))
-  (src, src)
 
-fun parse-many-type-fields()
-  many(parse-type-field)
+fun match-string-content(): _ string
+  fun is-string-char(ch: char) ch != '"'
+  var src := ""
+  src := src ++ chars-are("string content", is-string-char).string
+  src
+  
+fun match-string(): _ string
+  var src := ""
+  src := src ++ whitespace()
+  src := src ++ char('"').string
+  src := src ++ match-string-content()
+  src := src ++ char('"').string
+  src
+
+fun match-type-ref(): _ (string, int)
+  var src := ""
+  src := src ++ whitespace()
+  src := src ++ pstring("(type")
+  src := src ++ whitespace()
+  val idx = pnat()
+  src := src ++ idx.show
+  src := src ++ pstring(")")
+  (src, idx)
+
+fun match-func-import(): _ (string, int, int)
+  var src := ""
+  src := src ++ whitespace()
+  src := src ++ pstring("(func")
+  val (idx-src, idx) = match-idx-comment()
+  src := src ++ idx-src
+  val (typ-src, typ-idx) = match-type-ref()
+  src := src ++ typ-src
+  src := src ++ pstring(")")
+  (src, idx, typ-idx)
+
+fun parse-import-field()
+  var src := ""
+  src := src ++ whitespace()
+  src := src ++ pstring("(import")
+  val mod = match-string()
+  src := src ++ mod
+  val name = match-string()
+  src := src ++ name
+  val (func-src, idx, typ-idx) = match-func-import()
+  src := src ++ func-src
+  src := src ++ (pstring(")"))
+  save(Import(src, idx, name, typ-idx))
+
+fun skip-wasi-memory-import()
+  whitespace()
+  pstring("(import")
+  match-string()
+  match-string()
+  whitespace()
+  pstring("(memory")
+  match-idx-comment()
+  whitespace()
+  pnat()
+  char(')')
+  char(')')
 
 // (func ...) forms have: idx comment, type idx, params?, results?, locals?, comment blocks
 // call_indirect which take a type idx parameter, block which take a result parameter.
 // non-essential sexprs can be parsed as "unknown" sexpr
+// Strings have \" escape sequences
 
 fun parse-module()
   val src = pstring("(module")
   save(Module(src))
-  val types = parse-many-type-fields()
-  types
+  many(parse-type-field)
+  many(parse-import-field)
+  optional(' ', skip-wasi-memory-import) // Appears in SIDE_MODULE compilation of custom wasi code
 
 fun parse-wat(s: string)
   parse(s.slice(), parse-module)
