@@ -131,13 +131,14 @@ fun match-string-content(): _ string
   src := src ++ chars-are("string content", is-string-char).string
   src
   
-fun match-string(): _ string
+fun match-string(): _ (string, string)
   var src := ""
   src := src ++ whitespace()
   src := src ++ char('"').string
-  src := src ++ match-string-content()
+  val content = match-string-content()
+  src := src ++ content
   src := src ++ char('"').string
-  src
+  (src, content)
 
 fun match-type-ref(): _ (string, int)
   var src := ""
@@ -164,10 +165,10 @@ fun parse-import-field()
   var src := ""
   src := src ++ whitespace()
   src := src ++ pstring("(import")
-  val mod = match-string()
-  src := src ++ mod
-  val name = match-string()
-  src := src ++ name
+  val (mod-src, mod) = match-string()
+  src := src ++ mod-src
+  val (name-src, name) = match-string()
+  src := src ++ name-src
   val (func-src, idx, typ-idx) = match-func-import()
   src := src ++ func-src
   src := src ++ (pstring(")"))
@@ -205,7 +206,7 @@ fun string(f: module-field)
   match f
     Module(s)     -> "Module: " ++ s
     Type(s, i, _) -> "Type(" ++ i.show ++ "): " ++ s
-    Import(s)     -> "Import: " ++ s
+    Import(s, i, n, _) -> "Import(" ++ i.show ++ ") - " ++ n ++ ": " ++ s
     Func(s)       -> "Func:   " ++ s
     Other(s)      -> "Other:  " ++ s
 
