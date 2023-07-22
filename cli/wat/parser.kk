@@ -32,7 +32,7 @@ type module-field
   Module(src: string) // The module itself.
   Type(src: string, idx: int, typ: func-type)
   Import(src: string, idx: int, name: string, typ-idx: int)
-  Func(src: string)
+  Func(src: string, idx: int, typ-idx: int)
   Other(src: string)
 
 effect fun save(it: module-field): ()
@@ -187,10 +187,61 @@ fun skip-wasi-memory-import()
   char(')')
   char(')')
 
-// (func ...) forms have: idx comment, type idx, params?, results?, locals?, comment blocks
-// call_indirect which take a type idx parameter, block which take a result parameter.
-// non-essential sexprs can be parsed as "unknown" sexpr
-// Strings have \" escape sequences
+fun match-func-locals(): _ maybe<string>
+  var src := ""
+  src := src ++ whitespace()
+  src := src ++ pstring("(local")
+  val locals = many1(match-type-id)
+  // locals type does not matter to us, but we do want to capture the text
+  // source.
+  foreach(locals) fn((lsrc, _))
+    src := src ++ lsrc
+  src := src ++ pstring(")")
+  Just(src)
+
+fun match-non-sexpr(): _ string
+  val src = chars-are("Non-sexpr") fn(ch)
+    ch != '(' && ch != ')'
+  src.string
+
+fun match-sexpr(): _ string
+  var src := ""
+  src := src ++ pstring("(")
+  src := src ++ match-non-sexpr()
+  src := src ++ pstring(")")
+  src
+
+fun parse-func-field()
+  var src := ""
+  src := src ++ whitespace()
+  src := src ++ pstring("(func")
+  val (idx-src, idx) = match-idx-comment()
+  src := src ++ idx-src
+  val (typ-src, typ-idx) = match-type-ref()
+  src := src ++ typ-src
+  val params = optional(Nothing, match-func-params)
+  val results = optional(Nothing, match-func-results)
+  val locals = optional(Nothing, match-func-locals)
+  // We don't actually care about the param and result list beyond the text
+  // source. Type info will be matched against the corresponding type field.
+  match params
+    Nothing -> ()
+    Just((psrc, _)) -> src := src ++ psrc
+  match results
+    Nothing -> ()
+    Just((rsrc, _)) -> src := src ++ rsrc
+  match locals
+    Nothing -> ()
+    Just(lsrc) -> src := src ++ lsrc
+  src := src ++ match-non-sexpr()
+  val more-body = many fn()
+    val sexpr = match-sexpr()
+    val rest = optional("", match-non-sexpr)
+    sexpr ++ rest
+  foreach(more-body) fn(s)
+    src := src ++ s
+  src := src ++ pstring(")")
+  save(Func(src, idx, typ-idx))
 
 fun parse-module()
   val src = pstring("(module")
@@ -198,6 +249,7 @@ fun parse-module()
   many(parse-type-field)
   many(parse-import-field)
   optional(' ', skip-wasi-memory-import) // Appears in SIDE_MODULE compilation of custom wasi code
+  many(parse-func-field)
 
 fun parse-wat(s: string)
   parse(s.slice(), parse-module)
@@ -207,7 +259,7 @@ fun string(f: module-field)
     Module(s)     -> "Module: " ++ s
     Type(s, i, _) -> "Type(" ++ i.show ++ "): " ++ s
     Import(s, i, n, _) -> "Import(" ++ i.show ++ ") - " ++ n ++ ": " ++ s
-    Func(s)       -> "Func:   " ++ s
+    Func(_, i, ti) -> "Func(" ++ i.show ++ ", " ++ ti.show ++ ")"
     Other(s)      -> "Other:  " ++ s
 
 fun main()
