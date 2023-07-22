@@ -49,32 +49,45 @@ fun (==)(lhs: module-field, rhs: module-field): bool
     (Type(_, _, ltyp), Type(_, _, rtyp)) -> ltyp == rtyp
     _ -> False
 
-fun field-list-contains(typs: list<module-field>, target: module-field)
+fun contains(typs: list<module-field>, target: module-field)
   any(typs) fn(typ)
     typ == target
+
+// These `list<module-field>`s should be a list of `Type`s.
+fun add-wasi-type-fields(target: list<module-field>, wasi: list<module-field>)
+  val last-idx = match target.last
+    Nothing -> 0
+    Just(typ) ->
+      match typ
+        Type(_, idx, _) -> idx
+        _ -> 0
+  val missing-types = wasi.remove(fn(typ) target.contains(typ))
+                          .map-indexed(fn(i, Type(a, _, c)) {
+                            Type(a, (1 + i + last-idx), c)
+                          })
+  target ++ missing-types
 
 pub fun patch(target: list<module-field>, wasi: list<module-field>)
   val target-types = filter(target, is-type)
   val wasi-types = filter(wasi, is-type)
-  val new-types = remove(wasi-types, fn(wt) {field-list-contains(target-types, wt)})
-  ()
+  val new-types = target-types.add-wasi-type-fields(wasi-types)
+  new-types
 
 fun main()
   val t1 = Type("", 0, Func-type(Just([I32]), Just([I32])))
-  val w1 = Type("", 0, Func-type(Just([I32]), Just([I32])))
-  val t2 = Type("", 0, Func-type(Just([I32]), Nothing))
-  val w2 = Type("", 0, Func-type(Just([I32]), Nothing))
-  val t3 = Type("", 0, Func-type(Nothing, Just([I32])))
-  val w3 = Type("", 0, Func-type(Nothing, Just([I32])))
-  val t4 = Type("", 0, Func-type(Nothing, Nothing))
-  val w4 = Type("", 0, Func-type(Nothing, Nothing))
-  val t5 = Type("", 0, Func-type(Just([I32]), Just([I32, F64])))
-  val w5 = Type("", 0, Func-type(Just([I32]), Just([I32])))
+  val w1 = Type("", 1, Func-type(Just([I32]), Just([I32])))
+  val t2 = Type("", 2, Func-type(Just([I32]), Nothing))
+  val w2 = Type("", 3, Func-type(Just([I32]), Nothing))
+  val t3 = Type("", 4, Func-type(Nothing, Just([I32])))
+  val w3 = Type("", 5, Func-type(Nothing, Just([I32])))
+  val t4 = Type("", 6, Func-type(Nothing, Nothing))
+  val w4 = Type("", 7, Func-type(Nothing, Nothing))
+  val t5 = Type("", 8, Func-type(Just([I32]), Just([I32, F64])))
+  val w5 = Type("", 9, Func-type(Just([I32]), Just([I32])))
   val t6 = Type("", 0, Func-type(Just([I32]), Just([I32])))
   val w6 = Type("", 0, Func-type(Just([I32, F64]), Just([I32])))
   val t7 = Type("", 0, Func-type(Just([I32]), Just([I32])))
   val w7 = Type("", 0, Func-type(Just([I64]), Just([I32])))
-  val new-types = remove([t1, t2, t3], fn(wt) {field-list-contains([t4, t3, t5], wt)})
   if t1 == w1 then println("Test 1: Success") else println("Test 1: Failed")
   if t2 == w2 then println("Test 2: Success") else println("Test 2: Failed")
   if t3 == w3 then println("Test 3: Success") else println("Test 3: Failed")
@@ -82,4 +95,32 @@ fun main()
   if (t5 == w5).is-false then println("Test 5: Success") else println("Test 5: Failed")
   if (t6 == w6).is-false then println("Test 6: Success") else println("Test 6: Failed")
   if (t7 == w7).is-false then println("Test 7: Success") else println("Test 7: Failed")
-  println(new-types.length.show)
+  println("With wasi  : " ++ [t5, t2, t3].my-show-list(string))
+  println("With target: " ++ [t4, t3, t5].my-show-list(string))
+  println("New types  : " ++ patch([t4, t3, t5], [t5, t2, t3]).my-show-list(string))
+
+fun string(p: wasm-type): string
+  match p
+    I32 -> "I32"
+    I64 -> "I64"
+    F32 -> "F32"
+    F64 -> "F64"
+
+fun string(ft: func-type): string
+  val param-string = ft.params.map fn(ps)
+                       ps.map(string)
+                         .join(" ")
+  val result-string = ft.results.map fn(rs)
+                        rs.map(string)
+                          .join(" ")
+  "P(" ++ param-string.default("") ++ "), R(" ++ result-string.default("") ++ ")"
+
+fun string(f: module-field): string
+  match f
+    Type(_, idx, ft) -> "T(" ++ idx.show ++ "): " ++ ft.string
+    _ -> "Unknown"
+
+fun my-show-list(xs: list<a>, show-fn: a -> e string): e string
+  val list-string = xs.map(show-fn)
+                      .join("\t")
+  "[" ++ list-string ++ "]"
