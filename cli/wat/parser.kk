@@ -7,30 +7,25 @@
  
  TODO
  ----
- + Remove testing code.
  + Add tests.
  =============================================================================*/
 module wat/parser
 
-import std/text/parse
+pub import std/text/parse
 
-import std/os/env // FIXME: DELETE ME
-import std/os/file // FIXME: DELETE ME
-import std/os/path // FIXME: DELETE ME
-
-type wasm-type
+pub type wasm-type
   I32
   I64
   F32
   F64
 
-alias wasm-type-list = maybe<list<wasm-type>>
+pub alias wasm-type-list = maybe<list<wasm-type>>
 
-struct func-type
+pub struct func-type
   params: wasm-type-list
   results: wasm-type-list
 
-type module-field
+pub type module-field
   Module(src: string) // The module itself.
   Type(src: string, idx: int, typ: func-type)
   Import(src: string, idx: int, name: string, typ-idx: int)
@@ -168,7 +163,7 @@ fun parse-import-field()
   var src := ""
   src := src ++ whitespace()
   src := src ++ pstring("(import")
-  val (mod-src, mod) = match-string()
+  val (mod-src, _) = match-string()
   src := src ++ mod-src
   val (name-src, name) = match-string()
   src := src ++ name-src
@@ -298,8 +293,7 @@ fun parse-export-field()
     Just(fidx) -> save(Export(src, name, fidx))
 
 fun parse-module()
-  val src = pstring("(module")
-  save(Module(src))
+  save(Other(pstring("(module")))
   many(parse-type-field)
   many(parse-import-field)
   optional(' ', skip-wasi-memory-import) // Appears in SIDE_MODULE compilation of custom wasi code
@@ -307,33 +301,14 @@ fun parse-module()
   many(parse-other-field)
   many(parse-export-field)
   many(parse-other-field)
+  // The above parse-other-field may include the closing paren for the wasm
+  // module if the last field is an "Other" field. If not, consume it here.
+  val end = optional("", {pstring(")")})
+  save(Other(end ++ char('\n').string))
 
-fun parse-wat(s: string)
-  parse(s.slice(), parse-module)
-
-fun string(f: module-field)
-  match f
-    Module(s) -> "Module: " ++ s
-    Type(s, i, _) -> "Type(" ++ i.show ++ "): " ++ s
-    Import(s, i, n, _) -> "Import(" ++ i.show ++ ") - " ++ n ++ ": " ++ s
-    Func(_, i, ti) -> "Func(" ++ i.show ++ ", " ++ ti.show ++ ")"
-    Export(s, n, fi) -> "Export(" ++ fi.show ++ "): " ++ n
-    Other(s) -> "Other:  " ++ s
-
-fun main()
-  val input = get-args().head
-  match input
-    Nothing -> println("Parser requires argument!")
-    Just(s) ->
-      var fields := []
-      with fun save(it: module-field) fields := fields ++ [it]
-      match parse-wat(read-text-file(path(s)))
-        ParseError(m, rr) ->
-          println("Error: " ++ m.show)
-          println("Remaining: " ++ rr.string.show)
-        ParseOk(_, rr) ->
-          println("Matched:")
-          map(fields) fn(x)
-            println(x.string)
-          println("" ++ length(fields).show)
-          println("Remaining: " ++ rr.string.show)
+pub fun parse-wat(s: string): _ parse-error<list<module-field>>
+  parse-eof(s.slice())
+    var fields := []
+    with fun save(it: module-field) fields := fields ++ [it]
+    parse-module()
+    fields
