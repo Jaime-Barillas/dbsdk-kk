@@ -262,6 +262,41 @@ fun parse-other-field()
   // case, but that doesn't matter.
   save(Other(src))
 
+fun match-func-ref(): _ (string, maybe<int>)
+  var src := ""
+  src := src ++ whitespace()
+  // If we are exporting a func we want to grab the func idx. Otherwise, we grab
+  // the next sexpr.
+  val maybe-func = starts-with(current-input().extend(4).string, "(func")
+  match maybe-func
+    Nothing ->
+      src := src ++ match-sexpr()
+      (src, Nothing)
+    Just ->
+      src := src ++ pstring("(func")
+      src := src ++ whitespace()
+      val func-idx = pnat()
+      src := src ++ func-idx.show
+      src := src ++ pstring(")")
+      (src, Just(func-idx))
+
+fun parse-export-field()
+  var src := ""
+  // Due to parse-other-field() before this, it's possible there is no
+  // preceding whitespace.
+  src := src ++ whitespace0()
+  src := src ++ pstring("(export")
+  val (name-src, name) = match-string()
+  src := src ++ name-src
+  val (func-src, func-idx) = match-func-ref()
+  src := src ++ func-src
+  src := src ++ pstring(")")
+  // func-idx = Just -> We got a func export, Nothing -> Some other kind of
+  // export.
+  match func-idx
+    Nothing -> save(Other(src))
+    Just(fidx) -> save(Export(src, name, fidx))
+
 fun parse-module()
   val src = pstring("(module")
   save(Module(src))
@@ -269,6 +304,8 @@ fun parse-module()
   many(parse-import-field)
   optional(' ', skip-wasi-memory-import) // Appears in SIDE_MODULE compilation of custom wasi code
   many(parse-func-field)
+  many(parse-other-field)
+  many(parse-export-field)
   many(parse-other-field)
 
 fun parse-wat(s: string)
