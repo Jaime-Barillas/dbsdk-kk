@@ -15,6 +15,8 @@ module wat/parser
 import std/text/parse
 
 import std/os/env // FIXME: DELETE ME
+import std/os/file // FIXME: DELETE ME
+import std/os/path // FIXME: DELETE ME
 
 type wasm-type
   I32
@@ -33,6 +35,7 @@ type module-field
   Type(src: string, idx: int, typ: func-type)
   Import(src: string, idx: int, name: string, typ-idx: int)
   Func(src: string, idx: int, typ-idx: int)
+  Export(src: string, name: string, func-idx: int)
   Other(src: string)
 
 effect fun save(it: module-field): ()
@@ -243,6 +246,22 @@ fun parse-func-field()
   src := src ++ pstring(")")
   save(Func(src, idx, typ-idx))
 
+fun parse-other-field()
+  var src := ""
+  src := src ++ whitespace()
+  // There may be Other fields before or after the group of exports. We need to
+  // make sure we don't accidentally consume them.
+  val maybe-export = starts-with(current-input().extend(6).string, "(export")
+  match maybe-export
+    Just -> ()
+    Nothing ->
+      // Just take the whole line.
+      src := src ++ chars-are("Other field", fn(ch) {ch != '\n'}).string
+  // NOTE: Sometimes there may be no "Other" fields before exports. `src` will
+  // only contain whitespace in this case. Not really an "Other" field in this
+  // case, but that doesn't matter.
+  save(Other(src))
+
 fun parse-module()
   val src = pstring("(module")
   save(Module(src))
@@ -250,17 +269,19 @@ fun parse-module()
   many(parse-import-field)
   optional(' ', skip-wasi-memory-import) // Appears in SIDE_MODULE compilation of custom wasi code
   many(parse-func-field)
+  many(parse-other-field)
 
 fun parse-wat(s: string)
   parse(s.slice(), parse-module)
 
 fun string(f: module-field)
   match f
-    Module(s)     -> "Module: " ++ s
+    Module(s) -> "Module: " ++ s
     Type(s, i, _) -> "Type(" ++ i.show ++ "): " ++ s
     Import(s, i, n, _) -> "Import(" ++ i.show ++ ") - " ++ n ++ ": " ++ s
     Func(_, i, ti) -> "Func(" ++ i.show ++ ", " ++ ti.show ++ ")"
-    Other(s)      -> "Other:  " ++ s
+    Export(s, n, fi) -> "Export(" ++ fi.show ++ "): " ++ n
+    Other(s) -> "Other:  " ++ s
 
 fun main()
   val input = get-args().head
@@ -269,7 +290,7 @@ fun main()
     Just(s) ->
       var fields := []
       with fun save(it: module-field) fields := fields ++ [it]
-      match parse-wat(s)
+      match parse-wat(read-text-file(path(s)))
         ParseError(m, rr) ->
           println("Error: " ++ m.show)
           println("Remaining: " ++ rr.string.show)
