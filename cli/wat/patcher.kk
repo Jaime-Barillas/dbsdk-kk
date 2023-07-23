@@ -135,16 +135,45 @@ fun update-wasi-import-types(target-types: list<module-field>, wasi-imports: lis
 
 fun append-wasi-imports(target-funcs: list<module-field>, wasi-imports: list<module-field>, target-imports: list<module-field>)
   val last-idx = match target-funcs.last
-    Nothing -> 0
+    Nothing -> 0 // FIXME: Wrong should be (last imports index) + 1
     Just(typ) ->
       match typ
         Func(_, idx, _) -> idx
-        _ -> 0
+        _ -> 0 // FIXME: Wrong should be (last imports index) + 1
   val missing-imports = wasi-imports.remove(fn(typ) target-imports.contains(typ))
                                     .map-indexed(fn(i, Import(a, _, c, d)) {
                                       Import(a, (1 + i + last-idx), c, d)
                                     })
   target-funcs ++ missing-imports
+
+fun get-matching-func(funcs: list<module-field>, func-idx: int)
+  funcs.find fn(func)
+    match func
+      Func(fsrc, fidx, tidx) -> fidx == func-idx
+      _ -> False
+
+// This is GROOOOOOOOOOOOOSSSSSSSSS
+fun insert-wasi-funcs(target-imports: list<module-field>, wasi-funcs: list<module-field>, wasi-exports: list<module-field>)
+  val funcs = wasi-exports.map(fn(exp) {
+    match exp
+      Export(_, name, func-idx) ->
+        match get-matching-func(wasi-funcs, func-idx)
+          Just(f) -> Just((name, f))
+          Nothing -> Nothing
+      _ -> Nothing
+  })
+  target-imports.foldl([]) fn(acc, im)
+    match im
+      Import(_, _, name, _typ-idx) ->
+        val mmp = funcs.find fn(maybe-pair)
+          match maybe-pair
+            Just((n', _)) -> name == n'
+            Nothing -> False
+        val f = mmp.default(Nothing)
+        match f
+          Just((_, f)) -> acc ++ [f]
+          Nothing -> acc ++ [im]
+      im -> acc ++ [im]
 
 pub fun patch(target: list<module-field>, wasi: list<module-field>)
   val target-types = filter(target, is-type)
@@ -161,16 +190,24 @@ pub fun patch(target: list<module-field>, wasi: list<module-field>)
   val target-imports = filter(target, is-import)
   val target-funcs = filter(target, is-func)
   val new-funcs = target-funcs.append-wasi-imports(updated-wasi-imports, target-imports)
-  new-funcs
+
+  val wasi-exports = filter(wasi, is-export)
+  val new-imports = target-imports.insert-wasi-funcs(updated-wasi-funcs, wasi-exports)
+
+  // TODO: Update call from clock_gettime to db_getTimestamp to use new func idx. Do it after inserting wasi imports.
+  //  ->>  Filter all new-imports + new-funcs for imports -> get idx of matching import -> string replace
+
+  new-imports
 
 // TODO: DONE! - Update type index of wasi file's functions.
+//       Undo above and instead perform the type index update when inserting the exported function (I have access to the new type idx here)
 //       DONE! - Update type index of wasi file's imports. (clock_gettime's call to db_getTimestamp which needs the new type idx from target)
 //       DONE! - Add new wasi imports to target's func list after all other _funcs_.
 //       Update clock_gettime's call to db_getTimestamp to use new func index of import as target sees it.
 //         NOTE: None of the Wasi functions call eachother, so only the above update needs to touch
 //               the source text of the functions.
-//       Grab list of exported functions from the wasi file
-//       Replace target's imports with corresponding functions from the wasi file
+//       DONE! - Grab list of exported functions from the wasi file
+//       DONE! - Replace target's imports with corresponding functions from the wasi file
 
 fun main()
   val t1 = Type("", 0, Func-type(Just([I32]), Just([I32])))
@@ -210,6 +247,13 @@ fun main()
   println("======================")
   val n-funcs2 = append-wasi-imports([Func("", 0, 0)], w-imports, [Import("", 7, "a", 4)])
   println("Should contain 2: " ++ n-funcs2.show-list(string))
+  println("======================")
+  val iwf-target-imports = [Import("", 0, "funca", 0), Import("", 0, "funcb", 1), Import("", 0, "funcc", 2)]
+  val iwf-wasi-funcs = [Func("", 2, 1), Func("", 3, 2), Func("", 4, 3)]
+  val iwf-wasi-exports = [Export("", "funcb", 3), Export("", "funcd", 4)]
+  val n-imports = insert-wasi-funcs(iwf-target-imports, iwf-wasi-funcs, iwf-wasi-exports)
+  println("Before inserting: " ++ iwf-target-imports.show-list(string))
+  println("After: " ++ n-imports.my-show-list(string))
 
 fun string(p: wasm-type): string
   match p
