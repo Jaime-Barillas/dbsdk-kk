@@ -5,6 +5,9 @@
  
  TODO
  ----
+ + Update comment blocks in the sources of module-fields from the Wasi code
+   which mention their type/func index to use their new index after being
+   inserted into the main wasm module.
  + Remove testing code.
  + Add tests.
  =============================================================================*/
@@ -47,6 +50,7 @@ fun (==)(lhs: func-type, rhs: func-type): bool
 fun (==)(lhs: module-field, rhs: module-field): bool
   match (lhs, rhs)
     (Type(_, _, ltyp), Type(_, _, rtyp)) -> ltyp == rtyp
+    (Import(_, _, lname, _), Import(_, _, rname, _)) -> lname == rname
     _ -> False
 
 fun contains(typs: list<module-field>, target: module-field)
@@ -62,7 +66,7 @@ fun add-wasi-type-fields(target: list<module-field>, wasi: list<module-field>)
         Type(_, idx, _) -> idx
         _ -> 0
   val missing-types = wasi.remove(fn(typ) target.contains(typ))
-                          .map-indexed(fn(i, Type(a, _, c)) {
+                          .map-indexed(fn(i, Type(a, _, c)) { // Destructuring here causes exn effect
                             Type(a, (1 + i + last-idx), c)
                           })
   target ++ missing-types
@@ -129,6 +133,19 @@ fun update-wasi-import-types(target-types: list<module-field>, wasi-imports: lis
                          .map(get-type-id)
   wasi-imports.map-indexed(fn(idx, wi) set-new-import-type-idx(idx, wi, idxs))
 
+fun append-wasi-imports(target-funcs: list<module-field>, wasi-imports: list<module-field>, target-imports: list<module-field>)
+  val last-idx = match target-funcs.last
+    Nothing -> 0
+    Just(typ) ->
+      match typ
+        Func(_, idx, _) -> idx
+        _ -> 0
+  val missing-imports = wasi-imports.remove(fn(typ) target-imports.contains(typ))
+                                    .map-indexed(fn(i, Import(a, _, c, d)) {
+                                      Import(a, (1 + i + last-idx), c, d)
+                                    })
+  target-funcs ++ missing-imports
+
 pub fun patch(target: list<module-field>, wasi: list<module-field>)
   val target-types = filter(target, is-type)
   val wasi-types = filter(wasi, is-type)
@@ -140,11 +157,15 @@ pub fun patch(target: list<module-field>, wasi: list<module-field>)
   
   val wasi-imports = filter(wasi, is-import)
   val updated-wasi-imports = update-wasi-import-types(target-types, wasi-imports, wasi-types)
-  updated-wasi-imports
+  
+  val target-imports = filter(target, is-import)
+  val target-funcs = filter(target, is-func)
+  val new-funcs = target-funcs.append-wasi-imports(updated-wasi-imports, target-imports)
+  new-funcs
 
 // TODO: DONE! - Update type index of wasi file's functions.
 //       DONE! - Update type index of wasi file's imports. (clock_gettime's call to db_getTimestamp which needs the new type idx from target)
-//       Add new wasi imports to target's func list after all other _funcs_.
+//       DONE! - Add new wasi imports to target's func list after all other _funcs_.
 //       Update clock_gettime's call to db_getTimestamp to use new func index of import as target sees it.
 //         NOTE: None of the Wasi functions call eachother, so only the above update needs to touch
 //               the source text of the functions.
@@ -182,10 +203,13 @@ fun main()
   println("Before: " ++ w-funcs.show-list(string))
   println("After : " ++ n-funcs.show-list(string))
   println("======================")
-  val w-imports = [Import("", 0, "", 3), Import("", 1, "", 4)]
+  val w-imports = [Import("", 0, "a", 3), Import("", 1, "b", 4)]
   val n-imports = update-wasi-import-types([t1, t2, t3], w-imports, [w1, w2, w3])
   println("Before: " ++ w-imports.show-list(string))
   println("After : " ++ n-imports.show-list(string))
+  println("======================")
+  val n-funcs2 = append-wasi-imports([Func("", 0, 0)], w-imports, [Import("", 7, "a", 4)])
+  println("Should contain 2: " ++ n-funcs2.show-list(string))
 
 fun string(p: wasm-type): string
   match p
