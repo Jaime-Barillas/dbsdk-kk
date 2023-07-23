@@ -67,27 +67,84 @@ fun add-wasi-type-fields(target: list<module-field>, wasi: list<module-field>)
                           })
   target ++ missing-types
 
+fun get-func-type-idx(f: module-field)
+  match f
+    Func(_, _, typ-idx) -> Just(typ-idx)
+    _ -> Nothing
+
+fun get-func-type(wasi-types: list<module-field>, idx: maybe<int>)
+  match idx
+    Nothing -> Nothing
+    Just(i) ->
+      wasi-types.find fn(typ)
+        // Could also rely on the Type's index within the wasi-types list.
+        // It should mirror the actual type field's index, but this is safer.
+        match typ
+          Type(_, widx, _) -> i == widx
+          _ -> False
+      // Relying on the type's index within the wasi-types list:
+      //match wasi-types[i]
+      //  Nothing -> Nothing
+      //  Just(ft) -> Just(ft)
+
+fun get-matching-type(target-types: list<module-field>, wasi-type: maybe<module-field>)
+  match wasi-type
+    Nothing -> Nothing
+    Just(wtyp) -> target-types.find(fn(ttyp) ttyp == wtyp)
+
+fun get-type-id(f: maybe<module-field>)
+  match f
+    Nothing -> -1 // FIXME: Some better way to signal an error.
+    Just(f') ->
+      match f'
+        Type(_, idx, _) -> idx
+        _ -> -1 // FIXME: Some better way to signal an error.
+
+fun set-new-func-type-idx(idx: int, func: module-field, new-typ-idx: list<int>)
+  match func
+    Func(src, fidx, _typ-idx) -> Func(src, fidx, new-typ-idx[idx].default(-1))
+    _ -> func
+
+fun update-wasi-func-types(target-types: list<module-field>, wasi-funcs: list<module-field>, wasi-types: list<module-field>)
+  val idxs = wasi-funcs.map(get-func-type-idx)
+                       .map(fn(typ-idx) get-func-type(wasi-types, typ-idx))
+                       .map(fn(typ) get-matching-type(target-types, typ))
+                       .map(get-type-id)
+  wasi-funcs.map-indexed(fn(idx, wf) set-new-func-type-idx(idx, wf, idxs))
+
 pub fun patch(target: list<module-field>, wasi: list<module-field>)
   val target-types = filter(target, is-type)
   val wasi-types = filter(wasi, is-type)
   val new-types = target-types.add-wasi-type-fields(wasi-types)
-  new-types
+
+  val wasi-funcs = filter(wasi, is-func)
+  val updated-wasi-funcs = update-wasi-func-types(target-types, wasi-funcs, wasi-types)
+  updated-wasi-funcs
+
+// TODO: DONE! - Update type index of wasi file's functions.
+//       Update type index of wasi file's imports. (clock_gettime's call to db_getTimestamp which needs the new type idx from target)
+//       Add new wasi imports to target's func list after all other _funcs_.
+//       Update clock_gettime's call to db_getTimestamp to use new func index of import as target sees it.
+//         NOTE: None of the Wasi functions call eachother, so only the above update needs to touch
+//               the source text of the functions.
+//       Grab list of exported functions from the wasi file
+//       Replace target's imports with corresponding functions from the wasi file
 
 fun main()
   val t1 = Type("", 0, Func-type(Just([I32]), Just([I32])))
-  val w1 = Type("", 1, Func-type(Just([I32]), Just([I32])))
-  val t2 = Type("", 2, Func-type(Just([I32]), Nothing))
-  val w2 = Type("", 3, Func-type(Just([I32]), Nothing))
-  val t3 = Type("", 4, Func-type(Nothing, Just([I32])))
+  val w1 = Type("", 3, Func-type(Just([I32]), Just([I32])))
+  val t2 = Type("", 1, Func-type(Just([I32]), Nothing))
+  val w2 = Type("", 4, Func-type(Just([I32]), Nothing))
+  val t3 = Type("", 2, Func-type(Nothing, Just([I32])))
   val w3 = Type("", 5, Func-type(Nothing, Just([I32])))
-  val t4 = Type("", 6, Func-type(Nothing, Nothing))
-  val w4 = Type("", 7, Func-type(Nothing, Nothing))
-  val t5 = Type("", 8, Func-type(Just([I32]), Just([I32, F64])))
-  val w5 = Type("", 9, Func-type(Just([I32]), Just([I32])))
-  val t6 = Type("", 0, Func-type(Just([I32]), Just([I32])))
-  val w6 = Type("", 0, Func-type(Just([I32, F64]), Just([I32])))
-  val t7 = Type("", 0, Func-type(Just([I32]), Just([I32])))
-  val w7 = Type("", 0, Func-type(Just([I64]), Just([I32])))
+  val t4 = Type("", 3, Func-type(Nothing, Nothing))
+  val w4 = Type("", 6, Func-type(Nothing, Nothing))
+  val t5 = Type("", 4, Func-type(Just([I32]), Just([I32, F64])))
+  val w5 = Type("", 7, Func-type(Just([I32]), Just([I32])))
+  val t6 = Type("", 5, Func-type(Just([I32]), Just([I32])))
+  val w6 = Type("", 8, Func-type(Just([I32, F64]), Just([I32])))
+  val t7 = Type("", 6, Func-type(Just([I32]), Just([I32])))
+  val w7 = Type("", 9, Func-type(Just([I64]), Just([I32])))
   if t1 == w1 then println("Test 1: Success") else println("Test 1: Failed")
   if t2 == w2 then println("Test 2: Success") else println("Test 2: Failed")
   if t3 == w3 then println("Test 3: Success") else println("Test 3: Failed")
@@ -97,7 +154,12 @@ fun main()
   if (t7 == w7).is-false then println("Test 7: Success") else println("Test 7: Failed")
   println("With wasi  : " ++ [t5, t2, t3].my-show-list(string))
   println("With target: " ++ [t4, t3, t5].my-show-list(string))
-  println("New types  : " ++ patch([t4, t3, t5], [t5, t2, t3]).my-show-list(string))
+  println("New types  : " ++ add-wasi-type-fields([t4, t3, t5], [t5, t2, t3]).my-show-list(string))
+  println("======================")
+  val w-funcs = [Func("", 0, 3), Func("", 1, 4)]
+  val n-funcs = update-wasi-func-types([t1, t2, t3], w-funcs, [w1, w2, w3])
+  println("Before: " ++ w-funcs.show-list(string))
+  println("After : " ++ n-funcs.show-list(string))
 
 fun string(p: wasm-type): string
   match p
@@ -118,6 +180,7 @@ fun string(ft: func-type): string
 fun string(f: module-field): string
   match f
     Type(_, idx, ft) -> "T(" ++ idx.show ++ "): " ++ ft.string
+    Func(_, idx, typ-idx) -> "F(" ++ idx.show ++ ", " ++ typ-idx.show ++ ")"
     _ -> "Unknown"
 
 fun my-show-list(xs: list<a>, show-fn: a -> e string): e string
