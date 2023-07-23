@@ -112,6 +112,23 @@ fun update-wasi-func-types(target-types: list<module-field>, wasi-funcs: list<mo
                        .map(get-type-id)
   wasi-funcs.map-indexed(fn(idx, wf) set-new-func-type-idx(idx, wf, idxs))
 
+fun get-import-type-idx(im: module-field)
+  match im
+    Import(_, _, _, typ-idx) -> Just(typ-idx)
+    _ -> Nothing
+
+fun set-new-import-type-idx(idx: int, im: module-field, new-typ-idx: list<int>)
+  match im
+    Import(src, iidx, name, _typ-idx) -> Import(src, iidx, name, new-typ-idx[idx].default(-1))
+    _ -> im
+
+fun update-wasi-import-types(target-types: list<module-field>, wasi-imports: list<module-field>, wasi-types: list<module-field>)
+  val idxs = wasi-imports.map(get-import-type-idx)
+                         .map(fn(typ-idx) get-func-type(wasi-types, typ-idx))
+                         .map(fn(typ) get-matching-type(target-types, typ))
+                         .map(get-type-id)
+  wasi-imports.map-indexed(fn(idx, wi) set-new-import-type-idx(idx, wi, idxs))
+
 pub fun patch(target: list<module-field>, wasi: list<module-field>)
   val target-types = filter(target, is-type)
   val wasi-types = filter(wasi, is-type)
@@ -119,10 +136,14 @@ pub fun patch(target: list<module-field>, wasi: list<module-field>)
 
   val wasi-funcs = filter(wasi, is-func)
   val updated-wasi-funcs = update-wasi-func-types(target-types, wasi-funcs, wasi-types)
-  updated-wasi-funcs
+  // TODO: Update call from clock_gettime to db_getTimestamp to use new func idx. Do it after inserting wasi imports.
+  
+  val wasi-imports = filter(wasi, is-import)
+  val updated-wasi-imports = update-wasi-import-types(target-types, wasi-imports, wasi-types)
+  updated-wasi-imports
 
 // TODO: DONE! - Update type index of wasi file's functions.
-//       Update type index of wasi file's imports. (clock_gettime's call to db_getTimestamp which needs the new type idx from target)
+//       DONE! - Update type index of wasi file's imports. (clock_gettime's call to db_getTimestamp which needs the new type idx from target)
 //       Add new wasi imports to target's func list after all other _funcs_.
 //       Update clock_gettime's call to db_getTimestamp to use new func index of import as target sees it.
 //         NOTE: None of the Wasi functions call eachother, so only the above update needs to touch
@@ -160,6 +181,11 @@ fun main()
   val n-funcs = update-wasi-func-types([t1, t2, t3], w-funcs, [w1, w2, w3])
   println("Before: " ++ w-funcs.show-list(string))
   println("After : " ++ n-funcs.show-list(string))
+  println("======================")
+  val w-imports = [Import("", 0, "", 3), Import("", 1, "", 4)]
+  val n-imports = update-wasi-import-types([t1, t2, t3], w-imports, [w1, w2, w3])
+  println("Before: " ++ w-imports.show-list(string))
+  println("After : " ++ n-imports.show-list(string))
 
 fun string(p: wasm-type): string
   match p
@@ -180,6 +206,7 @@ fun string(ft: func-type): string
 fun string(f: module-field): string
   match f
     Type(_, idx, ft) -> "T(" ++ idx.show ++ "): " ++ ft.string
+    Import(_, idx, _, typ-idx) -> "I(" ++ idx.show ++ ", " ++ typ-idx.show ++ ")"
     Func(_, idx, typ-idx) -> "F(" ++ idx.show ++ ", " ++ typ-idx.show ++ ")"
     _ -> "Unknown"
 
