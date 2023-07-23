@@ -106,7 +106,10 @@ fun get-type-id(f: maybe<module-field>)
 
 fun set-new-func-type-idx(idx: int, func: module-field, new-typ-idx: list<int>)
   match func
-    Func(src, fidx, _typ-idx) -> Func(src, fidx, new-typ-idx[idx].default(-1))
+    Func(src, fidx, typ-idx) ->
+      val new-idx = new-typ-idx[idx].default(-1)
+      val new-src = src.replace-all("(type " ++ typ-idx.show ++ ")", "(type " ++ new-idx.show ++ ")")
+      Func(new-src, fidx, new-idx)
     _ -> func
 
 fun update-wasi-func-types(target-types: list<module-field>, wasi-funcs: list<module-field>, wasi-types: list<module-field>)
@@ -175,6 +178,13 @@ fun insert-wasi-funcs(target-imports: list<module-field>, wasi-funcs: list<modul
           Nothing -> acc ++ [im]
       im -> acc ++ [im]
 
+//fun update-clock-getTimestamp-call(imports-and-funcs: list<module-field>)
+//  val clock-getTimestamp = imports-and-funcs.filter(is-import).find fn(im)
+//    match im
+//      Import(_, _, name, _) -> name == "clock_getTimestamp"
+//      _ -> False
+//  val clock-time-get = imports-and-funcs.filter(is-func).find
+
 pub fun patch(target: list<module-field>, wasi: list<module-field>)
   val target-types = filter(target, is-type)
   val wasi-types = filter(wasi, is-type)
@@ -196,12 +206,11 @@ pub fun patch(target: list<module-field>, wasi: list<module-field>)
 
   // TODO: Update call from clock_gettime to db_getTimestamp to use new func idx. Do it after inserting wasi imports.
   //  ->>  Filter all new-imports + new-funcs for imports -> get idx of matching import -> string replace
+  new-types ++ new-imports ++ new-funcs
 
-  new-imports
-
-// TODO: DONE! - Update type index of wasi file's functions.
+// TODO: DONE! - Update type index of wasi file's functions IN THE SRC TEXT.
 //       Undo above and instead perform the type index update when inserting the exported function (I have access to the new type idx here)
-//       DONE! - Update type index of wasi file's imports. (clock_gettime's call to db_getTimestamp which needs the new type idx from target)
+//       Update type index of wasi file's imports IN THE SRC TEXT. (clock_gettime's call to db_getTimestamp which needs the new type idx from target)
 //       DONE! - Add new wasi imports to target's func list after all other _funcs_.
 //       Update clock_gettime's call to db_getTimestamp to use new func index of import as target sees it.
 //         NOTE: None of the Wasi functions call eachother, so only the above update needs to touch
