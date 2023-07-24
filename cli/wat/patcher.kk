@@ -222,6 +222,9 @@ pub fun patch(target: list<module-field>, wasi: list<module-field>)
   val wasi-imports = filter(wasi, is-import)
   val updated-wasi-imports = update-wasi-import-types(new-types, wasi-imports, wasi-types)
   
+  // Currently the Koka DBSDK always imports the one function that matters:
+  // `clock_getTimestamp` which is used by the `clock_get_time` Wasi fn. See
+  // the note on this for an important detail (Todo.md item 0.)
   val target-imports = filter(target, is-import)
   val target-funcs = filter(target, is-func)
   val new-funcs = target-funcs.append-wasi-imports(updated-wasi-imports, target-imports)
@@ -229,7 +232,7 @@ pub fun patch(target: list<module-field>, wasi: list<module-field>)
   val wasi-exports = filter(wasi, is-export)
   val new-imports = target-imports.insert-wasi-funcs(updated-wasi-funcs, wasi-exports)
 
-  val clock-getTimestamp = get-db-clock-getTimestamp(new-funcs)
+  val clock-getTimestamp = get-db-clock-getTimestamp(new-imports ++ new-funcs)
   val clock-getTimestamp-idx = clock-getTimestamp.map(fn(im) {
     match im
       Import(_, idx, _, _) -> idx
