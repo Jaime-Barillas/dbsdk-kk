@@ -8,6 +8,7 @@
  + Update comment blocks in the sources of module-fields from the Wasi code
    which mention their type/func index to use their new index after being
    inserted into the main wasm module.
+ + Make code much nicer.
  + Remove testing code.
  + Add tests.
  =============================================================================*/
@@ -66,7 +67,7 @@ fun add-wasi-type-fields(target: list<module-field>, wasi: list<module-field>)
         Type(_, idx, _) -> idx
         _ -> 0
   val missing-types = wasi.remove(fn(typ) target.contains(typ))
-                          .map-indexed(fn(i, Type(a, _, c)) { // Destructuring here causes exn effect
+                          .map-indexed(fn(i, Type(a, _, c)) {
                             Type(a, (1 + i + last-idx), c)
                           })
   target ++ missing-types
@@ -135,14 +136,13 @@ fun set-new-import-type-idx(idx: int, im: module-field, new-typ-idx: list<int>)
 fun update-wasi-import-types(target-types: list<module-field>, wasi-imports: list<module-field>, wasi-types: list<module-field>)
   val idxs = wasi-imports.map(get-import-type-idx)
                          .map(fn(typ-idx) get-func-type(wasi-types, typ-idx))
-                          // FIXME: Do above wasi-type may not exist in below target type!
                          .map(fn(typ) get-matching-type(target-types, typ))
                          .map(get-type-id)
   wasi-imports.map-indexed(fn(idx, wi) set-new-import-type-idx(idx, wi, idxs))
 
 fun append-wasi-imports(target-funcs: list<module-field>, wasi-imports: list<module-field>, target-imports: list<module-field>)
   val last-idx = match target-funcs.last
-    Nothing -> 0 // FIXME: Wrong should be (last imports index) + 1
+    Nothing -> 0 // FIXME: Wrong should be (last imports index) + 1, i.e. Doesn't take into account any imports preceding the funcs.
     Just(typ) ->
       match typ
         Func(_, idx, _) -> idx
@@ -156,7 +156,7 @@ fun append-wasi-imports(target-funcs: list<module-field>, wasi-imports: list<mod
 fun get-matching-func(funcs: list<module-field>, func-idx: int)
   funcs.find fn(func)
     match func
-      Func(fsrc, fidx, tidx) -> fidx == func-idx
+      Func(_, fidx, _) -> fidx == func-idx
       _ -> False
 
 // This is GROOOOOOOOOOOOOSSSSSSSSS
@@ -165,7 +165,18 @@ fun insert-wasi-funcs(target-imports: list<module-field>, wasi-funcs: list<modul
     match exp
       Export(_, name, func-idx) ->
         match get-matching-func(wasi-funcs, func-idx)
-          Just(f) -> Just((name, f))
+          Just(f) ->
+            // While we're here, add a marker comment to the clock_time_get fn
+            // so we can update the call to dbsdk's clock_getTimestamp in the
+            // source at a later time.
+            if name == "clock_time_get" then // This is quite hacky!
+              match f
+                Func(src, idx, typ-idx) ->
+                  val new-src = src.replace-all("(func", "(func (;clock_time_get;)")
+                  Just((name, Func(new-src, idx, typ-idx)))
+                _ -> Just((name, f))
+            else
+              Just((name, f))
           Nothing -> Nothing
       _ -> Nothing
   })
@@ -182,12 +193,23 @@ fun insert-wasi-funcs(target-imports: list<module-field>, wasi-funcs: list<modul
           Nothing -> acc ++ [im]
       im -> acc ++ [im]
 
-//fun update-clock-getTimestamp-call(imports-and-funcs: list<module-field>)
-//  val clock-getTimestamp = imports-and-funcs.filter(is-import).find fn(im)
-//    match im
-//      Import(_, _, name, _) -> name == "clock_getTimestamp"
-//      _ -> False
-//  val clock-time-get = imports-and-funcs.filter(is-func).find
+fun get-db-clock-getTimestamp(fields: list<module-field>)
+  fun is-clock-getTimestamp(im: module-field)
+    match im
+      Import(_, _, name, _) -> name == "clock_getTimestamp"
+      _ -> False
+  filter(fields, is-import).find(is-clock-getTimestamp)
+
+fun update-clock-getTimestamp-call(func: module-field, new-idx: int)
+  match func
+    Func(src, idx, typ-idx) ->
+      if src.find("(;clock_time_get;)").is-just then
+        val new-src = src.replace-all("(;clock_time_get;)", "")
+                         .replace-all("call 0", "call " ++ new-idx.show) // FIXME: Don't hardcode that '0'.
+        Func(new-src, idx, typ-idx)
+      else
+        func
+    _ -> func
 
 pub fun patch(target: list<module-field>, wasi: list<module-field>)
   val target-types = filter(target, is-type)
@@ -196,7 +218,6 @@ pub fun patch(target: list<module-field>, wasi: list<module-field>)
 
   val wasi-funcs = filter(wasi, is-func)
   val updated-wasi-funcs = update-wasi-func-types(new-types, wasi-funcs, wasi-types)
-  // TODO: Update call from clock_gettime to db_getTimestamp to use new func idx. Do it after inserting wasi imports.
   
   val wasi-imports = filter(wasi, is-import)
   val updated-wasi-imports = update-wasi-import-types(new-types, wasi-imports, wasi-types)
@@ -208,90 +229,89 @@ pub fun patch(target: list<module-field>, wasi: list<module-field>)
   val wasi-exports = filter(wasi, is-export)
   val new-imports = target-imports.insert-wasi-funcs(updated-wasi-funcs, wasi-exports)
 
-  // TODO: Update call from clock_gettime to db_getTimestamp to use new func idx. Do it after inserting wasi imports.
-  //  ->>  Filter all new-imports + new-funcs for imports -> get idx of matching import -> string replace
-  new-types ++ new-imports ++ new-funcs
+  val clock-getTimestamp = get-db-clock-getTimestamp(new-funcs)
+  val clock-getTimestamp-idx = clock-getTimestamp.map(fn(im) {
+    match im
+      Import(_, idx, _, _) -> idx
+      _ -> -1
+    }).default(-1)
+  val new-new-imports = new-imports.map(fn(x) update-clock-getTimestamp-call(x, clock-getTimestamp-idx))
+  
+  new-types ++ new-new-imports ++ new-funcs
 
 // TODO: DONE! - Update type index of wasi file's functions IN THE SRC TEXT.
 //       Undo above and instead perform the type index update when inserting the exported function (I have access to the new type idx here)
-//       DONE! - Update type index of wasi file's imports IN THE SRC TEXT. (clock_gettime's call to db_getTimestamp which needs the new type idx from target)
-//       DONE! - Add new wasi imports to target's func list after all other _funcs_.
-//       Update clock_gettime's call to db_getTimestamp to use new func index of import as target sees it.
-//         NOTE: None of the Wasi functions call eachother, so only the above update needs to touch
-//               the source text of the functions.
-//       DONE! - Grab list of exported functions from the wasi file
-//       DONE! - Replace target's imports with corresponding functions from the wasi file
 
-fun main()
-  val t1 = Type("", 0, Func-type(Just([I32]), Just([I32])))
-  val w1 = Type("", 3, Func-type(Just([I32]), Just([I32])))
-  val t2 = Type("", 1, Func-type(Just([I32]), Nothing))
-  val w2 = Type("", 4, Func-type(Just([I32]), Nothing))
-  val t3 = Type("", 2, Func-type(Nothing, Just([I32])))
-  val w3 = Type("", 5, Func-type(Nothing, Just([I32])))
-  val t4 = Type("", 3, Func-type(Nothing, Nothing))
-  val w4 = Type("", 6, Func-type(Nothing, Nothing))
-  val t5 = Type("", 4, Func-type(Just([I32]), Just([I32, F64])))
-  val w5 = Type("", 7, Func-type(Just([I32]), Just([I32])))
-  val t6 = Type("", 5, Func-type(Just([I32]), Just([I32])))
-  val w6 = Type("", 8, Func-type(Just([I32, F64]), Just([I32])))
-  val t7 = Type("", 6, Func-type(Just([I32]), Just([I32])))
-  val w7 = Type("", 9, Func-type(Just([I64]), Just([I32])))
-  if t1 == w1 then println("Test 1: Success") else println("Test 1: Failed")
-  if t2 == w2 then println("Test 2: Success") else println("Test 2: Failed")
-  if t3 == w3 then println("Test 3: Success") else println("Test 3: Failed")
-  if t4 == w4 then println("Test 4: Success") else println("Test 4: Failed")
-  if (t5 == w5).is-false then println("Test 5: Success") else println("Test 5: Failed")
-  if (t6 == w6).is-false then println("Test 6: Success") else println("Test 6: Failed")
-  if (t7 == w7).is-false then println("Test 7: Success") else println("Test 7: Failed")
-  println("With wasi  : " ++ [t5, t2, t3].my-show-list(string))
-  println("With target: " ++ [t4, t3, t5].my-show-list(string))
-  println("New types  : " ++ add-wasi-type-fields([t4, t3, t5], [t5, t2, t3]).my-show-list(string))
-  println("======================")
-  val w-funcs = [Func("", 0, 3), Func("", 1, 4)]
-  val n-funcs = update-wasi-func-types([t1, t2, t3], w-funcs, [w1, w2, w3])
-  println("Before: " ++ w-funcs.show-list(string))
-  println("After : " ++ n-funcs.show-list(string))
-  println("======================")
-  val w-imports = [Import("", 0, "a", 3), Import("", 1, "b", 4)]
-  val n-imports = update-wasi-import-types([t1, t2, t3], w-imports, [w1, w2, w3])
-  println("Before: " ++ w-imports.show-list(string))
-  println("After : " ++ n-imports.show-list(string))
-  println("======================")
-  val n-funcs2 = append-wasi-imports([Func("", 0, 0)], w-imports, [Import("", 7, "a", 4)])
-  println("Should contain 2: " ++ n-funcs2.show-list(string))
-  println("======================")
-  val iwf-target-imports = [Import("", 0, "funca", 0), Import("", 0, "funcb", 1), Import("", 0, "funcc", 2)]
-  val iwf-wasi-funcs = [Func("", 2, 1), Func("", 3, 2), Func("", 4, 3)]
-  val iwf-wasi-exports = [Export("", "funcb", 3), Export("", "funcd", 4)]
-  val n-imports = insert-wasi-funcs(iwf-target-imports, iwf-wasi-funcs, iwf-wasi-exports)
-  println("Before inserting: " ++ iwf-target-imports.show-list(string))
-  println("After: " ++ n-imports.my-show-list(string))
-
-fun string(p: wasm-type): string
-  match p
-    I32 -> "I32"
-    I64 -> "I64"
-    F32 -> "F32"
-    F64 -> "F64"
-
-fun string(ft: func-type): string
-  val param-string = ft.params.map fn(ps)
-                       ps.map(string)
-                         .join(" ")
-  val result-string = ft.results.map fn(rs)
-                        rs.map(string)
-                          .join(" ")
-  "P(" ++ param-string.default("") ++ "), R(" ++ result-string.default("") ++ ")"
-
-fun string(f: module-field): string
-  match f
-    Type(_, idx, ft) -> "T(" ++ idx.show ++ "): " ++ ft.string
-    Import(_, idx, _, typ-idx) -> "I(" ++ idx.show ++ ", " ++ typ-idx.show ++ ")"
-    Func(_, idx, typ-idx) -> "F(" ++ idx.show ++ ", " ++ typ-idx.show ++ ")"
-    _ -> "Unknown"
-
-fun my-show-list(xs: list<a>, show-fn: a -> e string): e string
-  val list-string = xs.map(show-fn)
-                      .join("\t")
-  "[" ++ list-string ++ "]"
+//fun main()
+//  val t1 = Type("", 0, Func-type(Just([I32]), Just([I32])))
+//  val w1 = Type("", 3, Func-type(Just([I32]), Just([I32])))
+//  val t2 = Type("", 1, Func-type(Just([I32]), Nothing))
+//  val w2 = Type("", 4, Func-type(Just([I32]), Nothing))
+//  val t3 = Type("", 2, Func-type(Nothing, Just([I32])))
+//  val w3 = Type("", 5, Func-type(Nothing, Just([I32])))
+//  val t4 = Type("", 3, Func-type(Nothing, Nothing))
+//  val w4 = Type("", 6, Func-type(Nothing, Nothing))
+//  val t5 = Type("", 4, Func-type(Just([I32]), Just([I32, F64])))
+//  val w5 = Type("", 7, Func-type(Just([I32]), Just([I32])))
+//  val t6 = Type("", 5, Func-type(Just([I32]), Just([I32])))
+//  val w6 = Type("", 8, Func-type(Just([I32, F64]), Just([I32])))
+//  val t7 = Type("", 6, Func-type(Just([I32]), Just([I32])))
+//  val w7 = Type("", 9, Func-type(Just([I64]), Just([I32])))
+//  if t1 == w1 then println("Test 1: Success") else println("Test 1: Failed")
+//  if t2 == w2 then println("Test 2: Success") else println("Test 2: Failed")
+//  if t3 == w3 then println("Test 3: Success") else println("Test 3: Failed")
+//  if t4 == w4 then println("Test 4: Success") else println("Test 4: Failed")
+//  if (t5 == w5).is-false then println("Test 5: Success") else println("Test 5: Failed")
+//  if (t6 == w6).is-false then println("Test 6: Success") else println("Test 6: Failed")
+//  if (t7 == w7).is-false then println("Test 7: Success") else println("Test 7: Failed")
+//  println("With wasi  : " ++ [t5, t2, t3].my-show-list(string))
+//  println("With target: " ++ [t4, t3, t5].my-show-list(string))
+//  println("New types  : " ++ add-wasi-type-fields([t4, t3, t5], [t5, t2, t3]).my-show-list(string))
+//  println("======================")
+//  val w-funcs = [Func("", 0, 3), Func("", 1, 4)]
+//  val n-funcs = update-wasi-func-types([t1, t2, t3], w-funcs, [w1, w2, w3])
+//  println("Before: " ++ w-funcs.show-list(string))
+//  println("After : " ++ n-funcs.show-list(string))
+//  println("======================")
+//  val w-imports = [Import("", 0, "a", 3), Import("", 1, "b", 4)]
+//  val n-imports = update-wasi-import-types([t1, t2, t3], w-imports, [w1, w2, w3])
+//  println("Before: " ++ w-imports.show-list(string))
+//  println("After : " ++ n-imports.show-list(string))
+//  println("======================")
+//  val n-funcs2 = append-wasi-imports([Func("", 0, 0)], w-imports, [Import("", 7, "a", 4)])
+//  println("Should contain 2: " ++ n-funcs2.show-list(string))
+//  println("======================")
+//  val iwf-target-imports = [Import("", 0, "funca", 0), Import("", 0, "funcb", 1), Import("", 0, "funcc", 2)]
+//  val iwf-wasi-funcs = [Func("", 2, 1), Func("", 3, 2), Func("", 4, 3)]
+//  val iwf-wasi-exports = [Export("", "funcb", 3), Export("", "funcd", 4)]
+//  val n-imports = insert-wasi-funcs(iwf-target-imports, iwf-wasi-funcs, iwf-wasi-exports)
+//  println("Before inserting: " ++ iwf-target-imports.show-list(string))
+//  println("After: " ++ n-imports.my-show-list(string))
+//
+//fun string(p: wasm-type): string
+//  match p
+//    I32 -> "I32"
+//    I64 -> "I64"
+//    F32 -> "F32"
+//    F64 -> "F64"
+//
+//fun string(ft: func-type): string
+//  val param-string = ft.params.map fn(ps)
+//                       ps.map(string)
+//                         .join(" ")
+//  val result-string = ft.results.map fn(rs)
+//                        rs.map(string)
+//                          .join(" ")
+//  "P(" ++ param-string.default("") ++ "), R(" ++ result-string.default("") ++ ")"
+//
+//fun string(f: module-field): string
+//  match f
+//    Type(_, idx, ft) -> "T(" ++ idx.show ++ "): " ++ ft.string
+//    Import(_, idx, _, typ-idx) -> "I(" ++ idx.show ++ ", " ++ typ-idx.show ++ ")"
+//    Func(_, idx, typ-idx) -> "F(" ++ idx.show ++ ", " ++ typ-idx.show ++ ")"
+//    _ -> "Unknown"
+//
+//fun my-show-list(xs: list<a>, show-fn: a -> e string): e string
+//  val list-string = xs.map(show-fn)
+//                      .join("\t")
+//  "[" ++ list-string ++ "]"
