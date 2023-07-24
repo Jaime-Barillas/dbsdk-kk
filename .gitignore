@@ -2,6 +2,14 @@
 **.wasm
 **.tar.gz
 **.nrepl-port
+**.iso
 
+**.dbsdk-kk/
 **.koka/
 **iso/
+
+# cli symlinks
+cli/dbsdk/
+cli/sys/
+cli/tools/
+cli/wasi/
