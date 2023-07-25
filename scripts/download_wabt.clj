@@ -18,7 +18,7 @@
   (let [version "1.0.33"
         os (get-os)
         download-url (str "https://github.com/WebAssembly/wabt/releases/download/" version "/wabt-" version "-" os ".tar.gz")
-        download-dir (-> self-path fs/parent fs/parent (fs/path "lib" "wabt"))
+        download-dir (-> self-path fs/parent fs/parent (fs/path "tools" "wabt"))
         archive (fs/path download-dir "wabt.tar.gz")
         extracted-dir (fs/path download-dir (str "wabt-" version))]
 
@@ -36,5 +36,5 @@
 
     (println "Extracting WABT...")
     (proc/shell {:dir (str download-dir)} "tar" "-xf" (str archive))
-    (fs/copy-tree (fs/path extracted-dir "bin") (fs/path download-dir "bin") {:replace-existing true})
+    (fs/copy-tree (fs/path extracted-dir "bin") download-dir {:replace-existing true})
     (fs/delete-tree extracted-dir)))
