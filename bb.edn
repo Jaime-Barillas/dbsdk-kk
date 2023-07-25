@@ -16,5 +16,9 @@
   download-wabt
   {:doc "Download the WABT tools"
    :task download-wabt/-main}
+
+  create-cli-links
+  {:doc "Create directory links within the cli project to necessary tools/dirs"
+   :task create-cli-links/-main}
  }
 }
