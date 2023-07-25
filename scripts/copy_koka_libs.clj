@@ -30,10 +30,16 @@
     ;; Copy The Files
     ;; TODO: Copy only what's needed?
     (fs/create-dirs (fs/path dbsdk-kk-stdlib-path "std")) ; Needed for std/core.kk
-    (fs/copy
-      (fs/path koka-stdlib-path "std" "core.kk")
-      (fs/path dbsdk-kk-stdlib-path "std" "core.kk")
-      {:replace-existing true})
+    (fs/create-dirs (fs/path dbsdk-kk-stdlib-path "std" "num")) ; For int32/int64/float64 files
+    (doseq [f [(fs/path "std" "core.kk")
+               (fs/path "std" "num" "int32.kk")
+               (fs/path "std" "num" "int64.kk")
+               (fs/path "std" "num" "float64-inline.c")
+               (fs/path "std" "num" "float64.kk")]]
+      (fs/copy
+        (fs/path koka-stdlib-path f)
+        (fs/path dbsdk-kk-stdlib-path f)
+        {:replace-existing true}))
     (run!
       (make-copy-fn koka-stdlib-path dbsdk-kk-stdlib-path)
       ["std/core"])
