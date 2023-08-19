@@ -1,3 +1,4 @@
+import dbsdk/dbsdk
 import dbsdk/log
 import dbsdk/clock // Currently needed for Wasm patching to succeed.
 
