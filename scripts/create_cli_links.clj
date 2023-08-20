@@ -29,5 +29,4 @@
         cli-dir (fs/path proj-root "cli")]
     (create-sym-link (str (fs/path proj-root "dbsdk")) (str (fs/path cli-dir "dbsdk")))
     (create-sym-link (str (fs/path proj-root "sys")) (str (fs/path cli-dir "sys")))
-    (create-sym-link (str (fs/path proj-root "tools")) (str (fs/path cli-dir "tools")))
-    (create-sym-link (str (fs/path proj-root "wasi")) (str (fs/path cli-dir "wasi")))))
+    (create-sym-link (str (fs/path proj-root "tools")) (str (fs/path cli-dir "tools")))))
