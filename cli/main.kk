@@ -19,6 +19,9 @@ val koka-cclinkopts = "--cclinkopts=\"-g0 -sWASM=1 -sWASM_BIGINT -sNO_FILESYSTEM
 fun compile-koka()
   val app-dir = appdir()
   val current-dir = cwd()
+  // Appending the name of the main file to `current-dir` causes Koka to
+  // generate a C file with _the full path_ as its name. Don't prepend the
+  // current dir for a much nicer name!
   val koka-cmd = join(["koka",
                        koka-opts,
                        koka-cclinkopts,
@@ -26,7 +29,7 @@ fun compile-koka()
                        "--builddir=" ++ (current-dir / ".koka").string,
                        "--include=" ++ (app-dir / "dbsdk").string,
                        "--output=" ++ (current-dir / ".dbsdk-kk" / "main").string,
-                       (current-dir / "main.kk").string],
+                       "main.kk"],
                       " ")
   println(koka-cmd)
   ensure-dir(current-dir / ".dbsdk-kk")
