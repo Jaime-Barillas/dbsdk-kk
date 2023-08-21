@@ -1,3 +1,12 @@
+/*==============================================================================
+ dbsdk-kk cli tool
+ -------------------------------
+ The dbsdk-kk cli provides a convenient way to compile Koka code for the
+ DreamBox fantasy console.
+ -------------------------------
+ TODO:
+ + Koka's std/os/process/run-system-read does not seem to report errors.
+ =============================================================================*/
 import std/os/dir     // ensure-dir
 //import std/os/env     // get-args
 import std/os/file    // read-text-file write-text-file
@@ -21,9 +30,11 @@ fun compile-koka()
                       " ")
   println(koka-cmd)
   ensure-dir(current-dir / ".dbsdk-kk")
-  match run-system-read(koka-cmd)
-    Ok(result) -> println(result)
-    Error -> ()
+  // NOTE: The koka compiler always returns an exit code of 0 even when it
+  // encounters errors which prevent compilation.
+  koka-cmd.run-system-read()
+          .untry()
+          .println()
 
 fun wasm2wat()
   val wasm2wat = appdir() / "tools" / "wabt" / "wasm2wat"
@@ -34,9 +45,9 @@ fun wasm2wat()
                           " ")
   println(wasm2wat-cmd)
   ensure-dir(current-dir / ".dbsdk-kk")
-  match run-system-read(wasm2wat-cmd)
-    Ok(result) -> println(result)
-    Error -> ()
+  wasm2wat-cmd.run-system-read()
+              .untry()
+              .println()
 
 fun patch-wat-file()
   val current-dir = cwd()
@@ -56,9 +67,9 @@ fun wat2wasm()
                           " ")
   println(wat2wasm-cmd)
   ensure-dir(current-dir / "iso")
-  match run-system-read(wat2wasm-cmd)
-    Ok(result) -> println(result)
-    Error -> ()
+  wat2wasm-cmd.run-system-read()
+              .untry()
+              .println()
 
 fun compile-iso()
   val makedisc = appdir() / "tools" / "makedisc"
@@ -72,13 +83,22 @@ fun compile-iso()
                            (current-dir / "iso").string],
                           " ")
   println(makedisc-cmd)
-  match run-system-read(makedisc-cmd)
-    Ok(result) -> println(result)
-    Error -> ()
+  makedisc-cmd.run-system-read()
+              .untry()
+              .println()
 
 fun main()
   with ctl throw-exn(exn)
     println(exn.message)
+    match exn.info
+      ExnAssert -> println("  Assert Error!")
+      ExnError -> println("  Error Error!")
+      ExnInternal(name) -> println("  Internal Error: " ++ name)
+      ExnPattern(loc, def) -> println("  Pattern Error - loc: " ++ loc ++ ", def: " ++ def)
+      ExnRange -> println("  Range Error!")
+      ExnSystem(no) -> println("  System Error: " ++ no.show)
+      ExnTodo -> println("  Todo Error!")
+      _ -> println("  Unknown Error!")
   compile-koka()
   wasm2wat()
   patch-wat-file()
