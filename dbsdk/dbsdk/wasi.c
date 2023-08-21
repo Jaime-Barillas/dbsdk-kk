@@ -1,6 +1,8 @@
 // See emscripten's wasi/api.h: https://github.com/emscripten-core/emscripten/blob/main/system/include/wasi/api.h
 #include <wasi/api.h>
 #include <stdint.h>
+// Used by `__wasi_clock_time_get`.
+#include "dbsdk/c/include/db_clock.h"
 
 // Always succeeds, sets argc and argv_buf_size to zero.
 __wasi_errno_t __wasi_args_sizes_get(__wasi_size_t *argc, __wasi_size_t *argv_buf_size) {
@@ -25,7 +27,6 @@ _Noreturn void __wasi_proc_exit(__wasi_exitcode_t rval) {
 
 // Calls out to DBSDK's clock_getTimestamp() function. Ignores the precision
 // parameter.
-extern uint64_t clock_getTimestamp();
 __wasi_errno_t __wasi_clock_time_get(__wasi_clockid_t id, __wasi_timestamp_t precision, __wasi_timestamp_t *time) {
     // MONOTONIC only.
     if (id != __WASI_CLOCKID_MONOTONIC) return __WASI_ERRNO_INVAL;

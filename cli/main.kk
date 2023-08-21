@@ -28,6 +28,7 @@ fun compile-koka()
                        "--sharedir=" ++ (app-dir / "sys").string,
                        "--builddir=" ++ (current-dir / ".koka").string,
                        "--include=" ++ (app-dir / "dbsdk").string,
+                       "--ccincdir=" ++ (app-dir / "dbsdk").string,
                        "--output=" ++ (current-dir / ".dbsdk-kk" / "main").string,
                        "main.kk"],
                       " ")
