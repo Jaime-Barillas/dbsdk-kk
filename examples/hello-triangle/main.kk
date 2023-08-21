@@ -1,5 +1,4 @@
 import dbsdk/dbsdk
-import dbsdk/clock
 import dbsdk/log
 import dbsdk/vdp
 
@@ -27,7 +26,6 @@ fun tick(game-state: gameState): _ gameState
     game-state(num = currnum + 1)
 
 fun main()
-    clock-getTimestamp() // Needed by Koka.
     with val bg-color = Color32(128, 128, 255, 255)
     with handler
         fun x-or-y(which)
