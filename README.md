@@ -15,20 +15,72 @@ Cli tool + wrapper over the [DreamBox](https://dreambox3d.dev) SDK API for
 
 ## DBSDK
 
-|File            |Done?           |Notes                                      |
-|----------------|----------------|-------------------------------------------|
-|db_audio.h      |&#x274c;        |                                           |
-|db_bios.h       |&#x274c;        |                                           |
-|db_clock.h      |&#x274c;        |                                           |
-|db_gamepad.h    |&#x274c;        |                                           |
-|db_io.h         |&#x274c;        |                                           |
-|db_log.h        |&#x274c;        |                                           |
-|db_log.c        |&#x274c;        |                                           |
-|db_math.h       |&#x274c;        |                                           |
-|db_math.c       |&#x274c;        |                                           |
-|db_sounddriver.h|&#x274c;        |                                           |
-|db_sounddriver.c|&#x274c;        |                                           |
-|db_vdp.h        |&#x274c;        |Contains additional fns to set initial state. These are to be moved at a later time.|
+<table>
+  <tr> <th>File</th> <th>Done?</th> <th>Notes</th> </tr>
+  <tr>
+    <td>db_audio.h</td>
+    <td>&#x274c;</td>
+    <td>Includes stdint.h</td>
+  </tr>
+  <tr>
+    <td>db_bios.h</td>
+    <td>&#x274c;</td>
+    <td>Includes stdint.h</td>
+  </tr>
+  <tr>
+    <td>db_clock.h</td>
+    <td>&#x274c;</td>
+    <td>Includes stdint.h</td>
+  </tr>
+  <tr>
+    <td>db_gamepad.h</td>
+    <td>&#x274c;</td>
+    <td>Includes stdint.h</td>
+  </tr>
+  <tr>
+    <td>db_io.h</td>
+    <td>&#x274c;</td>
+    <td>Includes stdint.h</td>
+  </tr>
+  <tr>
+    <td>db_log.h</td>
+    <td>&#x274c;</td>
+    <td></td>
+  </tr>
+  <tr>
+    <td>db_log.c</td>
+    <td>&#x274c;</td>
+    <td>Includes stdio.h, stdarg.h</td>
+  </tr>
+  <tr>
+    <td>db_math.h</td>
+    <td>&#x274c;</td>
+    <td>Includes stdint.h</td>
+  </tr>
+  <tr>
+    <td>db_math.c</td>
+    <td>&#x274c;</td>
+    <td>Includes db_log.h</td>
+  </tr>
+  <tr>
+    <td>db_sounddriver.h</td>
+    <td>&#x274c;</td>
+    <td>Includes stdint.h, db_math.h, db_io.h</td>
+  </tr>
+  <tr>
+    <td>db_sounddriver.c</td>
+    <td>&#x274c;</td>
+    <td>Includes stdbool.h, stdlib.h, errno.h, string.h, math.h, assert.h, db_audio.h, db_io.h, db_log.h</td>
+  </tr>
+  <tr>
+    <td>db_vdp.h</td>
+    <td>&#x274c;</td>
+    <td>
+      Includes stdint.h, db_math.h</br>
+      Contains additional fns to set initial state. These are to be moved at a later time.
+    </td>
+  </tr>
+</table>
 
 # Documentation
 
