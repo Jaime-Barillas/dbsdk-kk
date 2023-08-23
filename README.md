@@ -34,8 +34,8 @@ Cli tool + wrapper over the [DreamBox](https://dreambox3d.dev) SDK API for
   </tr>
   <tr>
     <td>db_gamepad.h</td>
-    <td>&#x274c;</td>
-    <td>Includes stdint.h</td>
+    <td>&#x2714;&#xfe0f;</td>
+    <td></td>
   </tr>
   <tr>
     <td>db_io.h</td>
