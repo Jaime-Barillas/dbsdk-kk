@@ -10,7 +10,7 @@ Cli tool + wrapper over the [DreamBox](https://dreambox3d.dev) SDK API for
 |Component      |Done?           |
 |---------------|----------------|
 |`new` command  |&#x274c;        |
-|`build` command|&#x2714;&#xfe0f;|
+|`build` command|&#x274c;        |
 |`clean` command|&#x274c;        |
 
 ## DBSDK
