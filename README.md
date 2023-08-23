@@ -44,13 +44,16 @@ Cli tool + wrapper over the [DreamBox](https://dreambox3d.dev) SDK API for
   </tr>
   <tr>
     <td>db_log.h</td>
-    <td>&#x274c;</td>
-    <td></td>
+    <td>~</td>
+    <td>
+      <code>db_log</code> has a Koka wrapper,
+      <code>db_logf</code> is not available in Koka
+    </td>
   </tr>
   <tr>
     <td>db_log.c</td>
     <td>&#x274c;</td>
-    <td>Includes stdio.h, stdarg.h</td>
+    <td><code>db_logf</code> is not available in Koka</td>
   </tr>
   <tr>
     <td>db_math.h</td>
