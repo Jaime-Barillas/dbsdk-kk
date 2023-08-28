@@ -10,24 +10,6 @@ extern import
 
 abstract value struct gamepadState(boxed_ptr: any)
 
-pub type gamepadButton
-  A
-  B
-  X
-  Y
-  DPadUp
-  DPadDown
-  DPadLeft
-  DPadRight
-  L1
-  L2
-  L3
-  R1
-  R2
-  R3
-  Start
-  Select
-
 inline extern dbsdk-gamepad-isConnected(p: int32): int8
   c "gamepad_isConnected"
 
@@ -56,26 +38,6 @@ inline extern dbsdk-gamepad-State-rStickX(gpad: any): int16
 inline extern dbsdk-gamepad-State-rStickY(gpad: any): int16
   c "kk_dbsdk_gamepad__State_rStickY"
 
-// Koka has no uint16() function so we have to implement it manually for
-// gamepadButton.
-fun uint16(btn: gamepadButton): int16
-  match btn
-    A -> 1.int16()
-    B -> 2.int16()
-    X -> 4.int16()
-    Y -> 8.int16()
-    DPadUp -> 16.int16()
-    DPadDown -> 32.int16()
-    DPadLeft -> 64.int16()
-    DPadRight -> 128.int16()
-    L1 -> 256.int16()
-    L2 -> 512.int16()
-    L3 -> 1024.int16()
-    R1 -> 2048.int16()
-    R2 -> 4096.int16()
-    R3 -> 8192.int16()
-    Start -> 16384.int16()
-    Select -> -32768.int16()
 
 
 pub fun is-connected(port: int): bool
