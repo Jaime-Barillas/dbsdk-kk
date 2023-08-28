@@ -2,7 +2,7 @@
 #include <wasi/api.h>
 #include <stdint.h>
 // Used by `__wasi_clock_time_get`.
-#include "dbsdk/c/include/db_clock.h"
+#include "db_clock.h"
 
 // Always succeeds, sets argc and argv_buf_size to zero.
 __wasi_errno_t __wasi_args_sizes_get(__wasi_size_t *argc, __wasi_size_t *argv_buf_size) {
