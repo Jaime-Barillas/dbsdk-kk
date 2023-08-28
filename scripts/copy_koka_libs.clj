@@ -28,14 +28,17 @@
       (System/exit 1))
 
     ;; Copy The Files
-    ;; TODO: Copy only what's needed?
+    ;; Copying only what's needed.
     (fs/create-dirs (fs/path dbsdk-kk-stdlib-path "std")) ; Needed for std/core.kk
     (fs/create-dirs (fs/path dbsdk-kk-stdlib-path "std" "num")) ; For int32/int64/float64 files
+    (fs/create-dirs (fs/path dbsdk-kk-stdlib-path "std" "text")) ; For text/parse needed by float64
     (doseq [f [(fs/path "std" "core.kk")
                (fs/path "std" "num" "int32.kk")
                (fs/path "std" "num" "int64.kk")
                (fs/path "std" "num" "float64-inline.c")
-               (fs/path "std" "num" "float64.kk")]]
+               (fs/path "std" "num" "float64-inline.js") ; Needed by the compiler but unused
+               (fs/path "std" "num" "float64.kk")
+               (fs/path "std" "text" "parse.kk")]]
       (fs/copy
         (fs/path koka-stdlib-path f)
         (fs/path dbsdk-kk-stdlib-path f)
