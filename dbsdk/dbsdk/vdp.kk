@@ -68,6 +68,18 @@ inline extern dbsdk-vdp-getUsage(): int32
 inline extern dbsdk-vdp-setSampleParams(f: int32, u: int32, v: int32): ()
   c "dbsdk_vdp__vdp_setSampleParams"
 
+inline extern dbsdk-vdp-bindTexture(h: int32): ()
+  c "dbsdk_vdp__vdp_bindTexture"
+
+inline extern dbsdk-vdp-viewport(x: int32, y: int32, w: int32, h: int32): ()
+  c "dbsdk_vdp__vdp_viewport"
+
+inline extern dbsdk-vdp-submitDepthQuery(r: float32, c: int32, x: int32, y: int32, w: int32, h: int32): ()
+  c "dbsdk_vdp__vdp_submitDepthQuery"
+
+inline extern dbsdk-vdp-getDepthQueryResult(): int32
+  c "vdp_getDepthQueryResult"
+
 inline extern dbsdk-vdp-setVsyncHandler(t: (s) -> e s): ()
   c "kk_dbsdk_vdp__vdp_setVsyncHandler"
 
@@ -108,7 +120,7 @@ inline extern dbsdk-vdp-initialize(state: s): ()
 
 
 
-pub type depthFunc
+pub type depthComparison
   Never
   Less
   Equal
@@ -155,6 +167,17 @@ pub type wrapMode
   Repeat
   Clamp
 
+fun depthComparison-to-int(c: depthComparison): int
+  match c
+    Never -> 0x0200
+    Less -> 0x0201
+    Equal -> 0x0202
+    Lequal -> 0x0203
+    Greater -> 0x0204
+    NotEqual -> 0x0205
+    Gequal -> 0x0206
+    Always -> 0x0207
+
 fun blendFactor-to-int(b: blendFactor): int
   match b
     Zero -> 0
@@ -185,16 +208,8 @@ pub fun depth-write(enable: bool): ()
     False -> 0
   dbsdk-vdp-depthWrite(c_bool.int8())
 
-pub fun depth-func(comparison: depthFunc): ()
-  val c_depth_func = match comparison
-    Never -> 0x0200
-    Less -> 0x0201
-    Equal -> 0x0202
-    Lequal -> 0x0203
-    Greater -> 0x0204
-    NotEqual -> 0x0205
-    Gequal -> 0x0206
-    Always -> 0x0207
+pub fun depth-func(comparison: depthComparison): ()
+  val c_depth_func = depthComparison-to-int(comparison)
   dbsdk-vdp-depthFunc(c_depth_func.uint32())
 
 pub fun blend-equation(mode: blendMode): ()
@@ -262,6 +277,19 @@ pub fun set-sample-params(filter: filterMode, wrap-u: wrapMode, wrap-v: wrapMode
   val c_wrap_u = wrapMode-to-int(wrap-u)
   val c_wrap_v = wrapMode-to-int(wrap-v)
   dbsdk-vdp-setSampleParams(c_filter_mode.uint32(), c_wrap_u.uint32(), c_wrap_v.uint32())
+
+pub fun bind-texture(texture-handle: int32)
+  dbsdk-vdp-bindTexture(texture-handle)
+
+pub fun viewport(x: int, y: int, width: int, height: int): ()
+  dbsdk-vdp-viewport(x.uint32(), y.uint32(), width.uint32(), height.uint32())
+
+pub fun submit-depth-query(ref-val: float64, comparison: depthComparison, x: int, y: int, width: int, height: int)
+  val c_comparison = depthComparison-to-int(comparison)
+  dbsdk-vdp-submitDepthQuery(ref-val.float32(), c_comparison.uint32(), x.uint32(), y.uint32(), width.uint32(), height.uint32())
+
+pub fun get-depth-query-result(): int
+  dbsdk-vdp-getDepthQueryResult().uint()
 
 pub fun set-vsync-handler<gamestate>(tick: (gamestate) -> e gamestate): ()
   dbsdk-vdp-setVsyncHandler(tick)

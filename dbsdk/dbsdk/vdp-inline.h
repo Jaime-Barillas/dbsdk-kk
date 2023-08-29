@@ -47,6 +47,18 @@ static inline kk_unit_t dbsdk_vdp__vdp_setSampleParams(uint32_t filter, uint32_t
   vdp_setSampleParams(filter, wrapU, wrapV);
   return kk_Unit;
 }
+static inline kk_unit_t dbsdk_vdp__vdp_bindTexture(uint32_t textureHandle) {
+  vdp_bindTexture(textureHandle);
+  return kk_Unit;
+}
+static inline kk_unit_t dbsdk_vdp__vdp_viewport(uint32_t x, uint32_t y, uint32_t width, uint32_t height) {
+  vdp_viewport(x, y, width, height);
+  return kk_Unit;
+}
+static inline kk_unit_t dbsdk_vdp__vdp_submitDepthQuery(float refVal, uint32_t comparison, uint32_t x, uint32_t y, uint32_t width, uint32_t height) {
+  vdp_submitDepthQuery(refVal, comparison, x, y, width, height);
+  return kk_Unit;
+}
 
 kk_box_t kk_dbsdk_vdp__alloc_Color32(uint8_t, uint8_t, uint8_t, uint8_t, kk_context_t*);
 uint8_t kk_dbsdk_vdp__Color32_r(kk_box_t, kk_context_t*);
