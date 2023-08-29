@@ -39,6 +39,21 @@ inline extern dbsdk-vdp-setWinding(w: int32): ()
 inline extern dbsdk-vdp-setCulling(e: int8): ()
   c "dbsdk_vdp__vdp_setCulling"
 
+// draw-geometry
+// draw-geometry-packed
+
+inline extern dbsdk-vdp-allocTexture(m: int8, f: int32, w: int32, h: int32): int32
+  c "vdp_allocTexture"
+
+inline extern dbsdk-vdp-releaseTexture(h: int32): ()
+  c "dbsdk_vdp__vdp_releaseTexture"
+
+inline extern dbsdk-vdp-setTextureData(h: int32, l: int32, d: intptr_t, l: int32): ()
+  c "dbsdk_vdp__vdp_setTextureData"
+
+inline extern dbsdk-vdp-setTextureDataYUV(h: int32, y: intptr_t, yl: int32, u: intptr_t, ul: int32, v: intptr_t, vl: int32): ()
+  c "dbsdk_vdp__vdp_setTextureDataYUV"
+
 inline extern dbsdk-vdp-setVsyncHandler(t: (s) -> e s): ()
   c "kk_dbsdk_vdp__vdp_setVsyncHandler"
 
@@ -93,6 +108,14 @@ pub type blendFactor
 pub type windingOrder
   CW
   CCW
+
+pub type textureFormat
+  RGB565
+  RGBA4444
+  RGBA8888
+  DXT1
+  DXT3
+  YUV420
 
 fun blendFactor-to-int(b: blendFactor): int
   match b
@@ -158,6 +181,27 @@ pub fun set-culling(enabled: bool)
 //pub fun draw-geometry()
 
 //pub fun draw-geometry-packed()
+pub fun alloc-texture(mipmap: bool, format: textureFormat, width: int, height: int): int32
+  val c_mipmap = match mipmap
+    True -> 1
+    False -> 0
+  val c_format = match format
+    RGB565 -> 0
+    RGBA4444 -> 1
+    RGBA8888 -> 2
+    DXT1 -> 3
+    DXT3 -> 4
+    YUV420 -> 5
+  dbsdk-vdp-allocTexture(c_mipmap.uint8(), c_format.uint32(), width.uint32(), height.uint32())
+
+pub fun release-texture(texture-handle: int32): ()
+  dbsdk-vdp-releaseTexture(texture-handle)
+
+pub fun set-texture-data(texture-handle: int32, level: int, data: intptr_t, length: int): ()
+  dbsdk-vdp-setTextureData(texture-handle, level.uint32(), data, length.uint32())
+
+pub fun set-texture-data-yuv(texture-handle: int32, y-data: intptr_t, y-length: int, u-data: intptr_t, u-length: int, v-data: intptr_t, v-length: int): ()
+  dbsdk-vdp-setTextureDataYUV(texture-handle, y-data, y-length.uint32(), u-data, u-length.uint32(), v-data, v-length.uint32())
 
 pub fun set-vsync-handler<gamestate>(tick: (gamestate) -> e gamestate): ()
   dbsdk-vdp-setVsyncHandler(tick)

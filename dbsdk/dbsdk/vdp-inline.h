@@ -28,6 +28,18 @@ static inline kk_unit_t dbsdk_vdp__vdp_setCulling(uint8_t enabled) {
   vdp_setCulling(enabled);
   return kk_Unit;
 }
+static inline kk_unit_t dbsdk_vdp__vdp_releaseTexture(uint32_t textureHandle) {
+  vdp_releaseTexture(textureHandle);
+  return kk_Unit;
+}
+static inline kk_unit_t dbsdk_vdp__vdp_setTextureData(uint32_t textureHandle, uint32_t level, intptr_t data, uint32_t dataLen) {
+  vdp_setTextureData(textureHandle, level, (const void*) data, dataLen);
+  return kk_Unit;
+}
+static inline kk_unit_t dbsdk_vdp__vdp_setTextureDataYUV(uint32_t textureHandle, intptr_t yData, uint32_t yDataLen, intptr_t uData, uint32_t uDataLen, intptr_t vData, uint32_t vDataLen) {
+  vdp_setTextureDataYUV(textureHandle, (const void*) yData, yDataLen, (const void*) uData, uDataLen, (const void*) vData, vDataLen);
+  return kk_Unit;
+}
 
 kk_unit_t kk_dbsdk_vdp__vdp_setVsyncHandler(kk_function_t, kk_context_t*);
 
