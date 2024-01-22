@@ -56,12 +56,13 @@ const $std_core = {"_throw_exception": _throw_exception
 --------------------------------------------------*/
 
 export function _int32_multiply(x,y) {
+  // todo: should this be: return ((x*y) & 0xFFFFFFFF);
   var xhi = (x >> 16) & 0xFFFF;
   var xlo = x & 0xFFFF;
   var yhi = (y >> 16) & 0xFFFF;
   var ylo = y & 0xFFFF;
   var hi  = ((xhi * ylo) + (xlo * yhi));
-  return (((hi << 16) + (xlo * ylo))|0)
+  return (((hi << 16) + (xlo * ylo))|0);
 }
 
 export function _int32_rotl(x,y) {
@@ -85,10 +86,6 @@ export function _int32_ctz(x) {
   return ((31 - Math.clz32(i))|0);
 }
 
-export function _int32_ffs(x) {  // find first set bit: bit-index + 1, or 0 for zero
-  return (x == 0 ? 0 : 1 + _int32_ctz(x));
-}
-
 export function _int32_clrsb(x) {
   var i = (x|0);
   i = i ^ (i >> 31);
@@ -104,7 +101,7 @@ export function _int32_parity(x) {
   return (((0x6996 >> x) & 1) === 0);  // 0x6996 = 0b0110100110010110  == "mini" 16 bit lookup table with a bit set if the value has non-even parity
 }
 
-export function _int32_popcount(x) {
+export function _int32_popcount(x) {  // : int
   var i = (x|0);
   i = i - ((i >> 1) & 0x55555555);
   i = (i & 0x33333333) + ((i >> 2) & 0x33333333);
@@ -112,6 +109,20 @@ export function _int32_popcount(x) {
   i = i + (i >> 8);
   i = i + (i >> 16);
   return (i & 0x3F);
+}
+
+export function _int32_bswap(x) {
+  var i = (x|0);
+  return (((i&0xFF)<<24)|((i&0xFF00)<<8)|((i&0xFF0000)>>>8)|((i&0xFF000000)>>>24));
+}
+
+export function _int32_breverse(x) {
+  // from: http://graphics.stanford.edu/~seander/bithacks.html#ReverseParallel
+  var i = (x|0);
+  i = ((i >>> 1) & (0x55555555)) | ((i & (0x55555555)) << 1); // swap odd and even bits
+  i = ((i >>> 2) & (0x33333333)) | ((i & (0x33333333)) << 2); // swap 2-bit pairs
+  i = ((i >>> 4) & (0x0F0F0F0F)) | ((i & (0x0F0F0F0F)) << 4); // swap 4-bit nibbles 
+  return _int32_bswap(i);
 }
 
 const _int65 = 0x10000000000000000n;
@@ -150,6 +161,14 @@ export function _int64_rotr(x,y) {
   return _int64_rotl(x, 64n - y);
 }
 
+export function _int64_from_uint32(x) {
+  return (x >= 0 ? BigInt(x) : 0x100000000n + BigInt(x))
+}
+
+export function _int64_from_int32(x) {
+  return BigInt(x);
+}
+
 function _int64_hi(x) {
   return (Number( (x>>32n) & 0xFFFFFFFFn ) | 0);
 }
@@ -158,14 +177,18 @@ function _int64_lo(x) {
   return (Number( x & 0xFFFFFFFFn ) | 0);
 }
 
+export function _int64_hi_lo(hi,lo) {
+  return (_int64_from_int32(hi) << 32n) + _int64_from_uint32(lo);
+}
+
 export function _int64_ctz(x) {
   const lo = _int64_lo(x);
   if (lo === 0) {
     const hi = _int64_hi(x);
-    return BigInt(32 + _int32_ctz(hi));
+    return (32 + _int32_ctz(hi));
   }
   else {
-    return BigInt(_int32_ctz(lo));
+    return (_int32_ctz(lo));
   }
 }
 
@@ -173,15 +196,11 @@ export function _int64_clz(x) {
   const hi = _int64_hi(x);
   if (hi === 0) {
     const lo = _int64_lo(x);
-    return BigInt(32 + _int32_clz(lo));
+    return (32 + _int32_clz(lo));
   }
   else {
-    return BigInt(_int32_clz(hi));
+    return (_int32_clz(hi));
   }
-}
-
-export function _int64_ffs(x) {  // find first set bit: bit-index + 1, or 0 for zero
-  return (x === 0n ? 0n : 1n + _int64_ctz(x));
 }
 
 export function _int64_clrsb(x) {
@@ -194,7 +213,7 @@ export function _int64_clrsb(x) {
     return (lo >= 0 ? 31 : 32 + _int32_clrsb(lo));
   }
   else {
-    return BigInt(_int32_clrsb(hi));
+    return (_int32_clrsb(hi));
   }
 }
 
@@ -208,16 +227,19 @@ export function _int64_parity(x) {
 export function _int64_popcount(x) {
   const hi = _int64_hi(x);
   const lo = _int64_lo(x);  
-  return BigInt(_int32_popcount(hi) + _int32_popcount(lo));
+  return (_int32_popcount(hi) + _int32_popcount(lo));
 }
 
-
-export function _int64_from_uint32(x) {
-  return (x >= 0 ? BigInt(x) : 0x100000000n + BigInt(x))
+export function _int64_bswap(x) {
+  const hi = _int64_hi(x);
+  const lo = _int64_lo(x);  
+  return _int64_hi_lo(_int32_bswap(lo),_int32_bswap(hi));
 }
 
-export function _int64_from_int32(x) {
-  return BigInt(x);
+export function _int64_breverse(x) {
+  const hi = _int64_hi(x);
+  const lo = _int64_lo(x);  
+  return _int64_hi_lo(_int32_breverse(lo),_int32_breverse(hi)); 
 }
 
 const _max_uint32n =  0xFFFFFFFFn;
@@ -230,6 +252,36 @@ export function _int64_clamp_int32(x) {
 
 export function _int64_clamp_uint32(x) {
   return Number(x > _max_uint32n ? -1 : (x < 0 ? 0 : (x <= _max_int32n ? x : x - 0x100000000n)));
+}
+
+export function _int64_imul( x, y ) {
+  const z = x*y; BigInt.as
+  const lo = BigInt.asUintN(64,z);
+  const hi = z >> 64n;
+  return $std_core_types._Tuple2_(lo,hi);
+}
+
+function _int64_as_uint64(x) {
+  return (x < 0 ? x + 0x10000000000000000n : x);
+}
+
+export function _int64_umul( x, y ) {
+  return _int64_imul(_int64_as_uint64(x), _int64_as_uint64(y));
+}
+
+export function _int32_imul(x,y) {
+  const z = BigInt(x) * BigInt(y);
+  const lo = Number(BigInt.asUintN(32,z));
+  const hi = Number(BigInt.asIntN(32,z >> 32n));
+  return $std_core_types._Tuple2_(lo,hi);
+}
+
+function _int32_as_uint32(x) {
+  return (x < 0 ? x + 0x100000000 : x);
+}
+
+export function _int32_umul( x, y ) {
+  return _int32_imul(_int32_as_uint32(x), _int32_as_uint32(y));
 }
 
 

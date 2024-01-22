@@ -20,6 +20,7 @@
 // Allow reading aligned words as long as some bytes in it are part of a valid C object
 #define KK_ARCH_ALLOW_WORD_READS  (1)  
 
+
 static uint8_t kk_ascii_toupper(uint8_t c) {
   return (c >= 'a' && c <= 'z' ? c - 'a' + 'A' : c);
 }
@@ -92,7 +93,7 @@ kk_ssize_t kk_decl_pure kk_string_count_borrow(kk_string_t str, kk_context_t* ct
     for (; p < pend; p++) {
       // count continuation bytes (0b10xxxxxx bytes) in parallel
       const kk_uintx_t u = *p;
-      const kk_uintx_t m = ((u & kk_bits_high_mask) >> 7) & ((~u) >> 6); // each byte in `m` is 0x01 iff it was a continuation byte
+      const kk_uintx_t m = ((u & kk_mask_bytes_hi_bit64) >> 7) & ((~u) >> 6); // each byte in `m` is 0x01 iff it was a continuation byte
       cont += kk_bits_byte_sum(m);
     }
     t = (const uint8_t*)p; // restore t
@@ -372,6 +373,8 @@ kk_string_t kk_string_alloc_from_qutf8(const char* str, kk_context_t* ctx) {
 }
 
 kk_string_t kk_string_alloc_from_utf8n(kk_ssize_t len, const char* cstr, kk_context_t* ctx) {
+  // fast path for string initialization
+  if (len == 0 || cstr == NULL || cstr[0] == 0) return kk_string_empty();
   // for safety, we still always validate.
   return kk_qutf8_convert(len, cstr, false, ctx);
 }
@@ -784,6 +787,10 @@ kk_vector_t kk_string_splitv_atmost(kk_string_t str, kk_string_t sepstr, kk_ssiz
 --------------------------------------------------------------------------------------------------*/
 
 kk_string_t kk_string_to_upper(kk_string_t str, kk_context_t* ctx) {
+  if (kk_string_is_empty_borrow(str, ctx)) {
+    kk_string_drop(str, ctx);
+    return kk_string_empty();
+  }
   kk_ssize_t len;
   const uint8_t* s = kk_string_buf_borrow(str, &len, ctx);
   kk_string_t tstr;
@@ -804,6 +811,10 @@ kk_string_t kk_string_to_upper(kk_string_t str, kk_context_t* ctx) {
 }
 
 kk_string_t  kk_string_to_lower(kk_string_t str, kk_context_t* ctx) {
+  if (kk_string_is_empty_borrow(str, ctx)) {
+    kk_string_drop(str, ctx);
+    return kk_string_empty();
+  }
   kk_ssize_t len;
   const uint8_t* s = kk_string_buf_borrow(str, &len, ctx);
   kk_string_t tstr;

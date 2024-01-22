@@ -1,5 +1,5 @@
 /*---------------------------------------------------------------------------
-  Copyright 2012-2021, Microsoft Research, Daan Leijen. 
+  Copyright 2012-2021, Microsoft Research, Daan Leijen.
 
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
@@ -9,7 +9,7 @@
 /* Core types.
 
    This module is implicitly imported and all functions and types
-   are always available. 
+   are always available.
    These types are required to be defined for the compiler
    to work correctly (i.e. types like `:int` or `:div`)
 */
@@ -20,7 +20,7 @@ pub infixr 55  (++.)
 pub infixr 30  (&&)
 pub infixr 20  (||)
 
-// build: 113
+// build: 124
 
 // ----------------------------------------------------------------------------
 // Core types
@@ -57,7 +57,7 @@ pub value type int16
 
 // A 32-bit signed integer (represented in two's complement).
 // See the `module std/num/int32` module for operations on 32-bit integers.
-pub value type int32 
+pub value type int32
 
 // A 64-bit signed integer (represented in two's complement).
 // See the `module std/num/int64` module for operations on 64-bit integers.
@@ -80,6 +80,9 @@ pub value type intptr_t
 // Provides currently no operations and currently only used for storage and for interaction with external code.
 pub value type float32
 
+// The type of immutable arrays is called `:vector`.
+pub type vector<a>
+
 // An any type. Used for external calls
 pub type any
 
@@ -90,16 +93,22 @@ pub extern no-reuse() : reuse
   c inline  "NULL"
   js inline "null"
 
+/* the kinds of types are all built-in:
+V     value types (i.e. the star kind)
+E     effect rows (`<div,exn|e>`)
+X     a single effect (`div`, `exn`, `parse`, etc.), also called atomic effect
+HX    a handled effect type; use `handled` to lift it to an `X`
+HX1   a linear handled effect type; use `handled1` to lift it to an `X`
+H     heap types (always a phantom type without actual values)
+*/
 
 // The _total_ effect represents the absence of any effect.
-pub type <> :: E
+// Usually written as `<>`
+pub type total :: E
 
-// The effect constructor extends an effect with another effect.
-pub type <|> :: (X,E) -> E
-
-// The type of immutable arrays is called `:vector`.
-pub type vector<a>
-
+// The effect constructor extends an effect row with another effect.
+// Usually written as `<_|_>`
+pub type effect-extend :: (X,E) -> E
 
 // The divergence effect: a divergent function may not terminate.
 pub type div :: X
@@ -135,28 +144,29 @@ pub type handled1   :: HX1 -> X;
 
 // The `:void` type is empty and has no constructors.
 // See also the `:()` unit type and the `:bool` type.
-type void
+pub type void
 
 // The type of booleans has two inhabitants: `True` and `False`.
 pub type bool
   con False
   con True
 
-// The unit type `:()` is inhabited by just a single value, namely `()`.
+// The unit type `:unit` is inhabited by just a single value, namely `Unit`.
+// Usually the type and constructor are written as `()`.
 // See also the `:void` type and the `:bool` type.
-pub struct ()
+pub struct unit
 
-// A pair of values `:a` and `:b`.
-pub value struct (,)<a,b>(fst:a,snd:b)
+// A pair of values `:a` and `:b`. Usually written as `(x,y)` (for types and terms)
+pub value struct tuple2<a,b>(fst:a,snd:b)
 
-// A triple of values.
-pub value struct (,,)<a,b,c>(fst:a,snd:b,thd:c)
+// A triple of values. Usually written as `(x,y,z)` (for types and terms)
+pub value struct tuple3<a,b,c>(fst:a,snd:b,thd:c)
 
-// A quadruple of values.
-pub struct (,,,)<a,b,c,d>(fst:a,snd:b,thd:c,field4:d)
+// A quadruple of values. Usually written as `(a,b,c,d)` (for types and terms)
+pub struct tuple4<a,b,c,d>(fst:a,snd:b,thd:c,field4:d)
 
-// A quintuple of values.
-pub struct (,,,,)<a,b,c,d,e>(fst:a,snd:b,thd:c,field4:d,field5:e)
+// A quintuple of values. Usually written as `(a,b,c,d,e)` (for types and terms)
+pub struct tuple5<a,b,c,d,e>(fst:a,snd:b,thd:c,field4:d,field5:e)
 
 // The `:maybe` type is used to represent either a value (`Just(x)`) or `Nothing`.
 // This type is often used to represent values that can be _null_.
@@ -194,7 +204,7 @@ pub noinline fip fun keep( x : a ) : a
   x
 
 // ----------------------------------------------------------------------------
-// Standard functions  
+// Standard functions
 // ----------------------------------------------------------------------------
 
 // The identity function returns its argument unchanged
@@ -210,19 +220,19 @@ pub fip fun (||)( x : bool, y : bool) : bool  // inlined in the compiler for sho
   if x then True else y
 
 // Logical negation
-pub fip fun (!)( b : bool ) : bool 
+pub fip fun bool/(!)( b : bool ) : bool
   if b then False else True
 
 // Logical negation
-pub fip fun not( b : bool ) : bool 
+pub fip fun not( b : bool ) : bool
   if b then False else True
 
 // _Internal_: 32-bit zero, needed for markers in `std/core/hnd`.
-pub inline fip extern zero32() : int32  
+pub inline fip extern zero32() : int32
   inline "0"
 
 // _Internal_: generated by type inference and later refined into one of the `open` variants in `std/core/hnd`.
-pub noinline extern ".open"<e1::E,e2::E,a,b>( x : a ) : e2 b
+pub noinline extern "@open"<e1::E,e2::E,a,b>( x : a ) : e2 b
   inline "#1"
 
 
@@ -258,7 +268,7 @@ pub inline extern set( ^ref : ref<h,a>, assigned : a) : <write<h>> ()
   js inline "((#1).value = #2)"
 
 // Read the value of a reference.
-pub inline extern (!) : forall<h,a,e> ( ref : ref<h,a>) -> <read<h>|e> a with(hdiv<h,a,e>)
+pub inline extern ref/(!) : forall<h,a,e> ( ref : ref<h,a>) -> <read<h>|e> a with(hdiv<h,a,e>)
   c  "kk_ref_get"
   cs inline "#1.Value"
   js inline "#1.value"
@@ -307,7 +317,7 @@ pub inline extern local-get : forall<a,s,e> (v: local-var<s,a>) -> <local<s>|e> 
   js inline "((#1).value)";
 
 
-inline extern unsafe-no-local-cast : forall<a,e> ( action : forall<h> () -> <local<h>|e> a ) -> (() -> e a) 
+inline extern unsafe-no-local-cast : forall<a,e> ( action : forall<h> () -> <local<h>|e> a ) -> (() -> e a)
   inline "#1"
 
 // _Internal_: if local mutation is unobservable, the `:local` effect can be erased by using the `local-scope` function.
@@ -323,7 +333,7 @@ inline extern local-scope : forall<e,a> ( action : forall<h> () -> <local<h> | e
 */
 
 // _Internal_: used to pass locals by reference.
-pub inline extern byref(loc : a) : a 
+pub inline extern byref(loc : a) : a
   inline "#1"
 
 // ----------------------------------------------------------------------------
@@ -331,10 +341,10 @@ pub inline extern byref(loc : a) : a
 // ----------------------------------------------------------------------------
 
 // _Unsafe_. Mark a function parameter as decreasing to suppress the non-termination effect (`:div`).
-pub inline fip extern unsafe-decreasing( x : a ) : a 
+pub inline fip extern unsafe-decreasing( x : a ) : a
   inline "#1"
 
-inline fip extern unsafe-total-cast : forall<e,a> ( action : () -> e a ) -> (() -> a) 
+inline fip extern unsafe-total-cast : forall<e,a> ( action : () -> e a ) -> (() -> a)
   inline "#1"
 
 // _Unsafe_. This function calls a function and pretends it did not have any effect at all.
@@ -360,8 +370,7 @@ pub value type optional<a>
   // The `Optional` constructor is used when an optional argument is given.
   con Optional( value : a )
   // `None` is used when an optional argument is not provided.
-  con None
-
+  con None   // note: must come second; see Core/Core.hs
 
 
 // ----------------------------------------------------------------------------
@@ -377,37 +386,42 @@ extern import
 
 // _Internal_. Internal type for constructor contexts.
 // Holds the address to a field of type `:a` in a constructor.
-pub value type field-addr<a>
+pub type field-addr<a>
 
-// First-class constructor context (for _tail recursion module cons_ (TRMC) optimization).
+// _Internal_. Internal function name for field addresses.
+pub fip extern "@field-addr-of"( x : a, conname : string, fieldname : string ) : field-addr<a>
+  c inline "kk_field_addr_null()"
+  inline ""  // compiled specially
+
+// First-class constructor context (for _tail recursion modulo cons_ (TRMC) optimization).
 abstract value type cctx<a,b>
-  con ".Cctx"( res : a, holeptr : field-addr<b> )
+  con "@Cctx"( res : a, holeptr : field-addr<b> )
 
 // First-class constructor context.
 pub alias ctx<a> = cctx<a,a>
 
-// _Internal_. Create a hole for a context 
-pub inline fip extern ".cctx-hole-create"() : a
-  c  inline "kk_intf_box(0)"
+// _Internal_. Create a hole for a context
+pub inline fip extern "@cctx-hole-create"() : a
+  c  inline "kk_cctx_hole()"
   js inline "undefined"
 
 // _Internal_. Create an initial non-empty context.
-pub inline fip extern ".cctx-create"( x : a, xhole : field-addr<b> ) : cctx<a,b>
+pub inline fip extern "@cctx-create"( x : a, xhole : field-addr<b> ) : cctx<a,b>
   c   "kk_cctx_create"
   js  "_cctx_create"
 
 // _Internal_. Extend a constructor context with a non-empty context
-pub inline fip extern ".cctx-extend"( c : cctx<a,b>, x : b, xhole : field-addr<c> ) : cctx<a,c>
-  c inline "kk_cctx_extend(#1,#2,#3,false /*is-linear*/,kk_context())"  
+pub inline fip extern "@cctx-extend"( c : cctx<a,b>, x : b, xhole : field-addr<c> ) : cctx<a,c>
+  c inline "kk_cctx_extend(#1,#2,#3,false /*is-linear*/,kk_context())"
   js "_cctx_extend"
 
 // _Internal_. Compose a constructor context with a non-empty context
-pub inline fip extern ".cctx-compose-extend"( c1 : cctx<a,b>, c2 : cctx<b,c> ) : cctx<a,c>
+pub inline fip extern "@cctx-compose-extend"( c1 : cctx<a,b>, c2 : cctx<b,c> ) : cctx<a,c>
   c inline "kk_cctx_extend(#1,#2.res,#2.holeptr,false /*is-linear*/,kk_context())"
-  js "_cctx_compose" 
+  js "_cctx_compose"
 
 // Apply a constructor context
-pub inline fip extern []( c : cctx<a,b>, x : b ) : a
+pub inline fip extern index( c : cctx<a,b>, x : b ) : a
   c inline "kk_cctx_apply(#1,#2,false /*is-linear*/,kk_context())"
   js "_cctx_apply"
 
@@ -426,4 +440,4 @@ pub inline fip extern cctx-empty() : cctx<a,a>
   c  "kk_cctx_empty"
   js "_cctx_empty"
 
-  
+
