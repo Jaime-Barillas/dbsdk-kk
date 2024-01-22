@@ -79,7 +79,7 @@ Cli tool + wrapper over the [DreamBox](https://dreambox3d.dev) SDK API for
     <td>db_vdp.h</td>
     <td>&#x274c;</td>
     <td>
-      Includes stdint.h, db_math.h</br>
+      Includes stdint.h, db_math.h (Only Vec4 is required.)</br>
       Contains additional fns to set initial state. These are to be moved at a later time.
     </td>
   </tr>
