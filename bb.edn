@@ -4,10 +4,12 @@
  {
   setup
   {:doc "Setup the project for development"
+   :requires ([babashka.process :as proc])
    :task (do
            (proc/shell "git" "submodule" "update" "--init")
            (run 'download-wabt)
-           (run 'create-cli-links))}
+           (run 'create-cli-links)
+           (run 'copy-koka-libs))}
 
   cli
   {:doc "Compile the dbsdk-kk cli"
