@@ -13,8 +13,8 @@ import std/os/file    // read-text-file write-text-file
 import std/os/path    // appdir cwd stemname (/)
 import std/os/process // run-system-read
 
-val koka-opts = "--cc=emcc --target=wasm32 --fstdalloc --heap=16MB --stack=4MB --optimize=2"
-val koka-cclinkopts = "--cclinkopts=\"-g0 -sWASM=1 -sWASM_BIGINT -sNO_FILESYSTEM -sERROR_ON_UNDEFINED_SYMBOLS=0 -sEXPORTED_FUNCTIONS=[_main,_malloc,_free]\""
+val koka-opts = "--cc=emcc --target=wasm32 --heap=16MB --stack=4MB --optimize=2"
+val koka-cclinkopts = "--cclinkopts=\"-g0 -sWASM=1 -sWASM_BIGINT -sNO_FILESYSTEM -sERROR_ON_UNDEFINED_SYMBOLS=0 -sEXPORTED_FUNCTIONS=[_main,_malloc,_free,___errno_location]\""
 
 fun compile-koka()
   val app-dir = appdir()
