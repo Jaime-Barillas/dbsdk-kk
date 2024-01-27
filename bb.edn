@@ -6,7 +6,7 @@
   {:doc "Setup the project for development"
    :requires ([babashka.process :as proc])
    :task (do
-           (proc/shell "git" "submodule" "update" "--init")
+           (proc/shell "git" "submodule" "update" "--init" "--recursive")
            (run 'download-wabt)
            (run 'create-cli-links)
            (run 'copy-koka-libs))}

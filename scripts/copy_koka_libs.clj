@@ -15,37 +15,29 @@
 (defn -main [& args]
   ;; Prep Work
   (let [proj-root (-> self-path fs/parent fs/parent)
-        koka-stdlib-path (fs/path proj-root "lib" "koka" "lib")
         koka-kklib-path (fs/path proj-root "lib" "koka" "kklib")
-        dbsdk-kk-sys-path (fs/path proj-root "sys")
-        dbsdk-kk-stdlib-path (fs/path dbsdk-kk-sys-path "lib")
-        dbsdk-kk-kklib-path (fs/path dbsdk-kk-sys-path "kklib")]
-    (when-not (fs/exists? koka-stdlib-path)
-      (println "Could not find Koka standard library!")
-      (System/exit 1))
+        koka-lib-path (fs/path proj-root "lib" "koka" "lib")
+        koka-mimalloc-path (fs/path koka-kklib-path "mimalloc")
+        dbsdk-kk-kklib-path (fs/path proj-root "sys" "kklib")
+        dbsdk-kk-lib-path (fs/path proj-root "sys" "lib")
+        dbsdk-kk-mimalloc-path (fs/path dbsdk-kk-kklib-path "mimalloc")]
     (when-not (fs/exists? koka-kklib-path)
-      (println "Could not find Koka C runtime library!")
+      (println "Could not find the Koka C runtime!")
+      (System/exit 1))
+    (when-not (fs/exists? koka-lib-path)
+      (println "Could not find the Koka standard library!")
+      (System/exit 1))
+    (when-not (fs/exists? koka-mimalloc-path)
+      (println "Could not find Koka's mimalloc library!")
       (System/exit 1))
 
     ;; Copy The Files
-    ;; Copying only what's needed.
-    (fs/create-dirs (fs/path dbsdk-kk-stdlib-path "std")) ; Needed for std/core.kk
-    (fs/create-dirs (fs/path dbsdk-kk-stdlib-path "std" "num")) ; For int32/int64/float64 files
-    (fs/create-dirs (fs/path dbsdk-kk-stdlib-path "std" "text")) ; For text/parse needed by float64
-    (doseq [f [(fs/path "std" "core.kk")
-               (fs/path "std" "num" "int32.kk")
-               (fs/path "std" "num" "int64.kk")
-               (fs/path "std" "num" "float64-inline.c")
-               (fs/path "std" "num" "float64-inline.js") ; Needed by the compiler but unused
-               (fs/path "std" "num" "float64.kk")
-               (fs/path "std" "text" "parse.kk")]]
-      (fs/copy
-        (fs/path koka-stdlib-path f)
-        (fs/path dbsdk-kk-stdlib-path f)
-        {:replace-existing true}))
-    (run!
-      (make-copy-fn koka-stdlib-path dbsdk-kk-stdlib-path)
-      ["std/core"])
     (run!
       (make-copy-fn koka-kklib-path dbsdk-kk-kklib-path)
+      ["include" "src"])
+    (run!
+      (make-copy-fn koka-lib-path dbsdk-kk-lib-path)
+      ["std"])
+    (run!
+      (make-copy-fn koka-mimalloc-path dbsdk-kk-mimalloc-path)
       ["include" "src"])))
