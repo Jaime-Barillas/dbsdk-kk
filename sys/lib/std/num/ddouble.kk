@@ -106,32 +106,32 @@ up to 2^106^ - 2).
 T.\ Dekker.
 _A Floating-Point Technique for Extending the Available Precision_.
 Numerische\ Mathematik, vol. 18 (3), June 1971, 224--242.
-[pdf](http://gdz.sub.uni-goettingen.de/dms/resolveppn/?PPN=GDZPPN001170007).
+[pdf](https://gdz.sub.uni-goettingen.de/dms/resolveppn/?PPN=GDZPPN001170007).
 ~~
 
 ~~ BibItem { #Goldberg:float; bibitem-label:"[2]"}
 David Goldberg.
 _What Every Computer Scientist Should Know About Floating-point Arithmetic_.
-ACM Computing Survey. vol. 23 (1), March 1991. doi: [10.1145/103162.103163](http://doi.org/10.1145/103162.103163).
-[pdf](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.22.6768&rep=rep1&type=pdf).
+ACM Computing Survey. vol. 23 (1), March 1991. doi: [10.1145/103162.103163](https://doi.org/10.1145/103162.103163).
+[pdf](https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.22.6768&rep=rep1&type=pdf).
 ~~
 
 ~~ BibItem { #Gustafson:posit; bibitem-label:"[3]"; searchterm:"Gustafson+John+Beating+floating+point+at+its+own+game+posit+arithmetic"; }
 John\ L. Gustafson and Isaac\ Yonemoto.
 _Beating Floating Point at its Own Game: Posit Arithmetic_. 2017.
-[pdf](http://www.johngustafson.net/pdfs/BeatingFloatingPoint.pdf).
+[pdf](https://www.johngustafson.net/pdfs/BeatingFloatingPoint.pdf).
 ~~
 
 ~~ BibItem { #Hida:qd; bibitem-label:"[4]"; searchterm:"Hida+Quad-Double+Arithmetic:+Algorithms,+Implementation,+and+Application" }
 Yozo Hida,\ Xiaoye S.\ Li, and David\ H.\ Bailey.
 _Quad-Double Arithmetic: Algorithms, Implementation, and Application_.
-Lawrence Berkeley National Laboratory Technical Report LBNL-46996. 2000. [pdf](http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.4.5769).
+Lawrence Berkeley National Laboratory Technical Report LBNL-46996. 2000. [pdf](https://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.4.5769).
 ~~
 
 ~~ BibItem { #Hida:qdlib; bibitem-label:"[5]"; searchterm:"Hida+Library+for+double-double+and+quad-double+arithmetic" }
 Yozo Hida,\ Xiaoye\ S.\ Li, and David\ H.\ Bailey.
 _Library for double-double and quad-double arithmetic._
-(2007). [pdf](http://www.jaist.ac.jp/~s1410018/papers/qd.pdf).
+(2007). [pdf](https://www.jaist.ac.jp/~s1410018/papers/qd.pdf).
 ~~
 
 ~~ Bibitem { #lin; bibitem-label:"[6]"; searchterm:'Linnainmaa+"Software+for+Doubled-Precision+Floating-Point+Computations"' }
@@ -155,12 +155,13 @@ Discrete & Computational Geometry, vol. 18, 305--363, 1997. [pdf](https://people
 ~
 
 [ddwiki]: https://en.wikipedia.org/wiki/Quadruple-precision_floating-point_format#Double-double_arithmetic
-[qd]:     http://crd-legacy.lbl.gov/~dhbailey/mpdist
+[qd]:     https://crd-legacy.lbl.gov/~dhbailey/mpdist
 
 \/
 */
 module std/num/ddouble
 
+import std/core/undiv
 import std/num/float64
 import std/num/decimal
 import std/text/parse
@@ -304,15 +305,15 @@ val dd-default-prec = -31
 ------------------------------------------------------*/
 
 // Zero constant
-pub val zero = ddouble(0.0)
+pub val zero : ddouble = ddouble(0.0)
 
 // One
-pub val one  = ddouble(1.0)
+pub val one : ddouble = ddouble(1.0)
 
 // Ten (`10.ddouble`)
-pub val ten  = ddouble(10.0)
+pub val ten : ddouble = ddouble(10.0)
 
-val two         = ddouble(2.0)
+val two = ddouble(2.0)
 
 // Is this `:ddouble` equal to is-zero
 pub fun is-zero( x : ddouble ) : bool
@@ -593,8 +594,8 @@ pub fun ldexp( x : ddouble, exp : int ) : ddouble
 
 fun npwr-acc( x : ddouble, acc : ddouble, n : int ) : ddouble
   if n <= 0 then acc
-  elif n.is-even then npwr-acc( sqr(x), acc, unsafe-decreasing(n/2) )
-  else npwr-acc( x, x*acc, unsafe-decreasing(n.dec))
+  elif n.is-even then npwr-acc( sqr(x), acc, pretend-decreasing(n/2) )
+  else npwr-acc( x, x*acc, pretend-decreasing(n.dec))
 
 fun npwr( x : ddouble, n : int ) : ddouble
   if n==0 then (if x.is-zero then dd-nan else one)
@@ -1036,8 +1037,8 @@ pub fun (~=)(x : ddouble, y : ddouble ) : bool
 // A. Neumaier, _Rundungsfehleranalyse einiger Verfahren zur Summation endlicher Summen_.
 // Math. Mechanik, 54:39--51, 1974.
 pub fun list/sum( xs : list<ddouble> ) : ddouble
-  var total := zero
-  var comp  := zero
+  var total : ddouble := zero
+  var comp  : ddouble := zero
   xs.foreach fn(x)
     val t = total + x
     val c = if total.abs >= x.abs then (total - t) + x else (x - t) + total

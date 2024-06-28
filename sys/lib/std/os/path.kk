@@ -10,7 +10,7 @@
 
 The path functions are system independent: backward slashes (`'\\'`)
 are treated as a forward slash to separate directories. Windows style
-root names like ``c:\`` or ``//server`` are also recognised.
+root names like ``c:\`` or ``//server`` are also recognized.
 
 A list of paths can be separated with either a colon (``:``) or
 semi-colon (``;``).
@@ -19,7 +19,7 @@ A `:path` is created using the `path` functions. Use `string` to convert
 back to a normalized path string. A path consists of a _root_ name
 (``/``, ``c:\``), the directory (``foo/bar``) and finally the _base_ name.
 The base name itself consists of the _stem_ and the _extension_. The
-extension is always the part that follows the last occurence of a dot (`'.'`)
+extension is always the part that follows the last occurrence of a dot (`'.'`)
 in the base name.
 
 A `:path` is always normalized. For a sequence of directories, any
@@ -47,7 +47,7 @@ abstract value struct path
 // `"/foo/bar.txt".path.basename === "bar.txt"` \
 // `"/foo".path.basename === "foo"`
 pub fun basename( p : path ) : string
-  p.parts.head("")
+  p.parts.head.default("")
 
 // Return the directory part of a path (including the rootname)
 // `"/foo/bar.txt".path.dirname === "/foo"` \
@@ -78,7 +78,7 @@ fun split-base( basename : string ) : (string,string)
 
 
 fun split-parts( parts : list<string> ) : (string,list<string>)
-  (parts.head(""), parts.tail)
+  (parts.head.default(""), parts.tail)
 
 // Convert a `:path` to a normalized `:string` path.\
 // If this results in an empty string, the current directory path `"."` is returned.
@@ -196,7 +196,7 @@ pub fun noext( p : path ) : path
 pub fun change-ext( p : path, extname : string ) : path
   val (basename,dirs) = p.parts.split-parts
   val (stemname,_)    = basename.split-base
-  val newext = if (extname.starts-with(".").bool) then extname else "." ++ extname
+  val newext = if (extname.starts-with(".").is-just) then extname else "." ++ extname
   path-parts(p.root, stemname ++ newext, dirs)
 
 // If a path has no extension, set it to the provided one.
@@ -222,7 +222,7 @@ pub fun dirparts(p : path) : list<string>
 // Return the last directory component name (or the empty string).\
 // `"c:/foo/bar/tst.txt".path.parentname === "bar"
 pub fun parentname( p : path ) : string
-  p.parts.tail.head("")
+  p.parts.tail.head.default("")
 
 // Convert a path to the absolute path on the file system.
 // The path is not required to exist on disk. However, if it

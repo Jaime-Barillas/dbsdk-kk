@@ -9,6 +9,7 @@
 // Formatting of time into a string.
 module std/time/format
 
+import std/core/undiv
 import std/text/parse
 import std/num/ddouble
 import std/time/timestamp
@@ -200,7 +201,7 @@ display as 2 digits. Allowed patterns:
 * ``Z``: timezone offset in hours and minutes separated by a colon, use ``Z`` for UTC time.
 * ``ZZ``: timezone offset in hours and minutes separated by colon, use an empty string for UTC time.
 * ``x``: fractional seconds since `min-time`. (``63610768799.429``)
-* ``YYYYYY``: the year in [ECMAscript](http://www.ecma-international.org/ecma-262/5.1/#sec-15.9.1.15.1) 6 digits, prepended with the sign. (``+002016``,``-000023``,``+000000``)
+* ``YYYYYY``: the year in [ECMAscript](https://www.ecma-international.org/ecma-262/5.1/#sec-15.9.1.15.1) 6 digits, prepended with the sign. (``+002016``,``-000023``,``+000000``)
 * ``y``: the absolute value of the year as a number (without zero padding). Useful when
   displaying Julian (`cal-julian`) negative years as ``10 BC`` for example (e.g. ``"y E"``).
 * ``C``, ``CC``: the short or long calendar name. (The short name is empty for the standard ISO calendars).
@@ -234,10 +235,10 @@ fun format-list( t : time, fmt : list<char>, locale : time-locale ) : string
     Nil -> ""
     Cons(c,cs) ->
       val (formatted,rest) = format-pat(t,c,cs,locale)
-      formatted ++ format-list(t, unsafe-decreasing(rest), locale)
+      formatted ++ format-list(t, pretend-decreasing(rest), locale)
 
 
-fun format-pat( t : time, h : char, fmt : list<char>, locale : time-locale ) : (string,list<char>) 
+fun format-pat( t : time, h : char, fmt : list<char>, locale : time-locale ) : (string,list<char>)
   if h=='"' || h=='\'' then
     // extract escaped part
     val (quoted,end) = fmt.span( fn(c){ c!=h } )
@@ -248,11 +249,11 @@ fun format-pat( t : time, h : char, fmt : list<char>, locale : time-locale ) : (
     // match pattern
     val (hs,rest) = fmt.span(fn(c){c==h})
     val n = hs.length + 1
-    formats.foreach-while fn(pattern) 
+    formats.foreach-while fn(pattern)
       val (c,m,f) = pattern
       if c!=h then Nothing else Just((f(t,min(n,m),locale), rest))
     .default( ("",rest) ) // ignore if no match
-  else 
+  else
     (h.string,fmt) // return as-is
 
 /*

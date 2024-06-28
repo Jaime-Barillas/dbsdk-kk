@@ -256,5 +256,7 @@ kk_decl_export bool    kk_bytes_starts_with(kk_bytes_t str, kk_bytes_t pre, kk_c
 kk_decl_export bool    kk_bytes_ends_with(kk_bytes_t str, kk_bytes_t post, kk_context_t* ctx);
 kk_decl_export bool    kk_bytes_contains(kk_bytes_t str, kk_bytes_t sub, kk_context_t* ctx);
 
+kk_decl_export kk_bytes_t  kk_bytes_join(kk_vector_t v, kk_context_t* ctx);
+kk_decl_export kk_bytes_t  kk_bytes_join_with(kk_vector_t v, kk_bytes_t sep, kk_context_t* ctx);
 
 #endif // KK_BYTES_H

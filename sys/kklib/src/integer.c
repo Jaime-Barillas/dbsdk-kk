@@ -41,10 +41,10 @@ including Karatsuba multiplication.
 #define BASE          KK_I64(1000000000000000000)
 #define LOG_BASE      (18)
 #define DIGIT_BITS    (64)
-#define BASE_HEX      KK_U64(0x100000000000000)  // largest hex base < BASE  
+#define BASE_HEX      KK_U64(0x100000000000000)  // largest hex base < BASE
 #define LOG_BASE_HEX  (14)                     // hex digits in BASE_HEX
-#define PRIxDIGIT     "%llx"
-#define PRIXDIGIT     "%llX"
+#define PRIxDIGIT     PRIxI64
+#define PRIXDIGIT     PRIXI64
 typedef uint64_t      kk_digit_t;     // 2*BASE + 1 < kk_digit_t_max
 
 typedef struct kk_ddigit_s {
@@ -75,18 +75,16 @@ static inline kk_ddigit_t ddigit_mul_add(kk_digit_t x, kk_digit_t y, kk_digit_t 
   return r;
 }
 
-#elif (KK_INTPTR_SIZE >= 8) && defined(__GNUC__) 
+#elif (KK_INTPTR_SIZE >= 8) && defined(__GNUC__)
 // Use 64-bit digits with gcc/clang/icc
 #define BASE          KK_I64(1000000000000000000)
 #define LOG_BASE      (18)
 #define DIGIT_BITS    (64)
-#define BASE_HEX      KK_U64(0x100000000000000)  // largest hex base < BASE  
+#define BASE_HEX      KK_U64(0x100000000000000)  // largest hex base < BASE
 #define LOG_BASE_HEX  (14)                     // hex digits in BASE_HEX
+#define PRIxDIGIT     PRIxI64
+#define PRIXDIGIT     PRIXI64
 typedef uint64_t      kk_digit_t;     // 2*BASE + 1 < kk_digit_t_max
-
-#include <inttypes.h>
-#define PRIxDIGIT   "%" PRIx64
-#define PRIXDIGIT   "%" PRIX64
 
 __extension__ typedef unsigned __int128 kk_ddigit_t;
 
@@ -112,13 +110,13 @@ static inline kk_ddigit_t ddigit_mul_add(kk_digit_t x, kk_digit_t y, kk_digit_t 
 #define BASE          KK_I32(1000000000)
 #define LOG_BASE      (9)
 #define DIGIT_BITS    (32)
-#define BASE_HEX      KK_U32(0x10000000)  // largest hex base < BASE  
+#define BASE_HEX      KK_U32(0x10000000)  // largest hex base < BASE
 #define LOG_BASE_HEX  (7)               // hex digits in BASE_HEX
+#define PRIxDIGIT     PRIxI32
+#define PRIXDIGIT     PRIXI32
 typedef uint32_t      kk_digit_t;       // 2*BASE + 1 < kk_digit_t_max
-#define PRIxDIGIT     "%x"
-#define PRIXDIGIT     "%X"
 
-typedef uint64_t    kk_ddigit_t;    // double digit for multiplies
+typedef uint64_t      kk_ddigit_t;      // double digit for multiplies
 
 static inline kk_ddigit_t ddigit_mul_add(kk_digit_t x, kk_digit_t y, kk_digit_t z) {
   return ((kk_ddigit_t)x * y) + z;
@@ -223,7 +221,7 @@ static kk_bigint_t* bigint_alloc(kk_ssize_t count, bool is_neg, kk_context_t* ct
   b->count = count;
   return b;
 }
-                                    
+
 static kk_bigint_t* bigint_alloc_zero(kk_ssize_t count, bool is_neg, kk_context_t* ctx) {
   kk_bigint_t* b = bigint_alloc(count, is_neg, ctx);
   kk_memset(b->digits, 0, kk_ssizeof(kk_digit_t)* bigint_available_(b));
@@ -338,7 +336,7 @@ static kk_integer_t integer_bigint(kk_bigint_t* x, kk_context_t* ctx) {
 
 // create a bigint from an kk_int_t
 static kk_bigint_t* bigint_from_int(kk_intx_t i, kk_context_t* ctx) {
-  kk_uintx_t u;  
+  kk_uintx_t u;
   if (i >= 0) {
     u = (kk_uintx_t)i;
   }
@@ -359,14 +357,14 @@ static kk_bigint_t* bigint_from_int(kk_intx_t i, kk_context_t* ctx) {
 // create a bigint from an int64_t
 static kk_bigint_t* bigint_from_int64(int64_t i, kk_context_t* ctx) {
   uint64_t u;  // use uint64 so we can convert MIN_INT64
-  if (i >= 0) { 
-    u = (uint64_t)i; 
+  if (i >= 0) {
+    u = (uint64_t)i;
   }
-  else if (i == INT64_MIN) { 
+  else if (i == INT64_MIN) {
     u = INT64_MAX; u++;   // avoid compiler warning on msvc
   }
-  else { 
-    u = (uint64_t)(-i); 
+  else {
+    u = (uint64_t)(-i);
   }
   kk_bigint_t* b = bigint_alloc(0, i < 0, ctx); // will reserve at least 4 digits
   do {
@@ -461,7 +459,7 @@ static kk_ssize_t kk_bigint_to_buf_(const kk_bigint_t* b, char* buf, kk_ssize_t 
     }
     // output leading digit
     j += kk_digit_to_str_partial(b->digits[i], &buf[j]);
-    
+
     // and output the rest of the digits
     while (i > 0) {
       i--;
@@ -671,7 +669,7 @@ bool kk_integer_hex_parse(const char* s, kk_integer_t* res, kk_context_t* ctx) {
   else if (s[i] == '-') { is_neg = true; i++; }
   // skip leading 0[xX]
   if (s[i] == '0' && (s[i+1]=='x' || s[i+1]=='X')) {
-    i += 2;  
+    i += 2;
   }
   if (!kk_ascii_is_hexdigit(s[i])) return false;  // must start with a hex digit
 
@@ -682,7 +680,7 @@ bool kk_integer_hex_parse(const char* s, kk_integer_t* res, kk_context_t* ctx) {
     if (kk_ascii_is_hexdigit(c)) {
       hdigits++;
     }
-    else if (c=='_' && kk_ascii_is_hexdigit(s[i+1])) { 
+    else if (c=='_' && kk_ascii_is_hexdigit(s[i+1])) {
       // skip underscores
     }
     else {
@@ -707,7 +705,7 @@ bool kk_integer_hex_parse(const char* s, kk_integer_t* res, kk_context_t* ctx) {
     *res = kk_integer_from_int(d, ctx);
     return true;
   }
-  
+
   // otherwise construct a big int
   const kk_ssize_t count = (kk_ssize_t)(ceil((double)hdigits * KK_LOG16_DIV_LOG10)) + 1; // conservatively overallocate to max needed.
   kk_extra_t ecount = (count >= MAX_EXTRA ? MAX_EXTRA-1 : (kk_extra_t)count);
@@ -728,7 +726,7 @@ bool kk_integer_hex_parse(const char* s, kk_integer_t* res, kk_context_t* ctx) {
       if (kk_ascii_is_hexdigit(c)) {
         j++;
         kk_digit_t hd = (kk_digit_t)(kk_ascii_is_digit(c) ? c - '0' : 10 + (kk_ascii_is_lower(c) ? c - 'a' : c - 'A'));
-        d = 16*d + hd; 
+        d = 16*d + hd;
         kk_assert_internal(d<BASE);
       }
     }
@@ -846,7 +844,7 @@ static kk_bigint_t* bigint_add_abs(kk_bigint_t* x, kk_bigint_t* y, kk_context_t*
 
 
 static kk_bigint_t* kk_bigint_add_abs_small(kk_bigint_t* x, kk_digit_t y, kk_context_t* ctx) {
-  kk_assert_internal(y < BASE);  
+  kk_assert_internal(y < BASE);
   const kk_ssize_t cx = bigint_count_(x);
 
   // allocate result bigint
@@ -1396,7 +1394,7 @@ kk_integer_t kk_integer_cmod_generic(kk_integer_t x, kk_integer_t y, kk_context_
 
 // Euclidean division: see <https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/divmodnote-letter.pdf>
 // Always preferred at it is more regular than C style truncated division. For example:
-// - modulus is always positive     
+// - modulus is always positive
 // - x `div` 2^n == sar(x,n)        for any x, n
 // - x `mod` 2^n == and(x,2^(n-1))  for any x, n
 // - Euclidean division behaves identical to truncated division for positive dividends.
@@ -1423,15 +1421,15 @@ kk_integer_t kk_integer_div_mod_generic(kk_integer_t x, kk_integer_t y, kk_integ
     if (kk_integer_is_neg_borrow(m,ctx)) {
       if (kk_integer_is_neg_borrow(y, ctx)) {
         d = kk_integer_inc(d, ctx);
-        if (mod!=NULL) { 
+        if (mod!=NULL) {
           m = kk_integer_sub(m, kk_integer_dup(y, ctx), ctx);
         }
       }
       else {
         d = kk_integer_dec(d, ctx);
-        if (mod!=NULL) { 
+        if (mod!=NULL) {
           m = kk_integer_add(m, kk_integer_dup(y, ctx), ctx);
-        } 
+        }
       }
     }
     kk_integer_drop(y, ctx);
@@ -1483,7 +1481,7 @@ static kk_string_t kk_int_to_hex_string(kk_intx_t i, bool use_capitals, kk_conte
 }
 
 static kk_ssize_t kk_bigint_to_hex_buf(kk_bigint_t* b, char* buf, kk_ssize_t size, bool use_capitals, kk_context_t* ctx) {
-  // TODO: can we improve the performance using the Chinese remainder theorem? 
+  // TODO: can we improve the performance using the Chinese remainder theorem?
   // and avoid the reversal? and per digit divide?
   kk_assert_internal(!b->is_neg);
   const char baseA = (use_capitals ? 'A' : 'a');
@@ -1502,8 +1500,8 @@ static kk_ssize_t kk_bigint_to_hex_buf(kk_bigint_t* b, char* buf, kk_ssize_t siz
   if (len == 0) {
     buf[len++] = '0';
   }
-  while (len > 0 && buf[len - 1] == '0') { // remove trailing zeros  
-    len--;  
+  while (len > 0 && buf[len - 1] == '0') { // remove trailing zeros
+    len--;
   }
   buf[len] = 0;
 
@@ -1520,7 +1518,7 @@ static kk_ssize_t kk_bigint_to_hex_buf(kk_bigint_t* b, char* buf, kk_ssize_t siz
 }
 
 static kk_string_t kk_bigint_to_hex_string(kk_bigint_t* b, bool use_capitals, kk_context_t* ctx) {
-  kk_ssize_t dec_needed = kk_bigint_to_buf_(b, NULL, 0);   
+  kk_ssize_t dec_needed = kk_bigint_to_buf_(b, NULL, 0);
   kk_ssize_t needed = (kk_ssize_t)(ceil((double)dec_needed * KK_LOG10_DIV_LOG16)) + 2; // conservative estimate
   char* s;
   kk_string_t str = kk_unsafe_string_alloc_cbuf(needed, &s, ctx);
@@ -1763,7 +1761,7 @@ static uint64_t kk_bigint_clamp_uint64(kk_bigint_t* bx, kk_context_t* ctx) {
   else if (bx->count==1
           #if (DIGIT_BITS >= 64)
            && bx->digits[0] <= UINT64_MAX
-          #endif         
+          #endif
           ) {
     // fast path for "small" integers
     u = (uint64_t)bx->digits[0];
@@ -1775,8 +1773,8 @@ static uint64_t kk_bigint_clamp_uint64(kk_bigint_t* bx, kk_context_t* ctx) {
       if (kk_digit_to_uint64_ovf(bx->digits[i], &d) ||
           kk_uint64_mul_ovf(u, BASE, &u) ||
           kk_uint64_add_ovf(u, d, &u)) {
-        u = UINT64_MAX; 
-        break; 
+        u = UINT64_MAX;
+        break;
       }
     }
   }
@@ -1793,7 +1791,7 @@ int64_t kk_integer_clamp64_generic(kk_integer_t x, kk_context_t* ctx) {
   else if (bx->count==1
           #if (DIGIT_BITS >= 64)
           && bx->digits[0] <= INT64_MAX
-          #endif         
+          #endif
           ) {
     // fast path for small integers
     int64_t i = (int64_t)bx->digits[0];
@@ -1863,7 +1861,7 @@ double kk_integer_as_double_generic(kk_integer_t x, kk_context_t* ctx) {
     double base = (double)BASE;
     for (kk_ssize_t i = bx->count; i > 0; i--) {
       d = (d*base) + ((double)bx->digits[i-1]);
-    }    
+    }
   }
   if (bx->is_neg) { d = -d; }
   drop_bigint(bx, ctx);

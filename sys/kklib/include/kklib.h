@@ -9,7 +9,7 @@
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-#define KKLIB_BUILD          132    // modify on changes to trigger recompilation
+#define KKLIB_BUILD          148    // modify on changes to trigger recompilation..
 // #define KK_DEBUG_FULL       1    // set to enable full internal debug checks
 
 // Includes
@@ -35,7 +35,6 @@
 #include <stddef.h>           // size_t
 #include <stdbool.h>          // bool
 #include <stdint.h>           // int64_t, ...
-#include <inttypes.h>         // PRIx64, ...
 #include <assert.h>           // assert
 #include <errno.h>            // ENOSYS, ...
 #include <stdlib.h>           // malloc, abort, ...

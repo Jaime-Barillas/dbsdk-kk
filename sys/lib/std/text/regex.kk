@@ -140,7 +140,7 @@ fun replace-captures( caps : list<sslice>, repl : string ) : string
     match cap
       [_,digit,amp,dollar] ->
         if dollar.is-valid then "$" else
-          val grp = if amp.is-valid then 0 else parse-int-default(digit.string,0)
+          val grp = if amp.is-valid then 0 else parse-int(digit.string).default(0)
           match caps[grp]
             Nothing -> ""
             Just(s) -> s.string
@@ -194,11 +194,11 @@ fun split-excludex( s : string, splitr : regex, acc : string ) : list<string>
 
   if s=="" return [acc]
   match( s.find(splitr) )
-    Nothing -> split-excludex( unsafe-decreasing(s.tail), splitr, acc ++ s.head) // todo: improve efficiency?
+    Nothing -> split-excludex( pretend-decreasing(s.tail), splitr, acc ++ s.head) // todo: improve efficiency?
     Just(cap) ->
       if (cap.groups.matched(1))
-        split-excludex( unsafe-decreasing(cap.after1), splitr, acc ++ cap.matched)
+        split-excludex( pretend-decreasing(cap.after1), splitr, acc ++ cap.matched)
 
       else
-        Cons(acc, split-excludex( unsafe-decreasing(cap.after1), splitr, "")) // todo: make tail recursive
+        Cons(acc, split-excludex( pretend-decreasing(cap.after1), splitr, "")) // todo: make tail recursive
 */

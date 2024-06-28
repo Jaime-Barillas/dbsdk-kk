@@ -15,10 +15,11 @@ See also <https://en.wikipedia.org/wiki/Double-precision_floating-point_format>.
 module std/num/float64
 
 import std/text/parse
+import std/num/int32
 import std/num/int64
 
 extern import
-  c  file "float64-inline.c"
+  c  file "float64-inline"
   js file "float64-inline.js"
 
 
@@ -74,7 +75,7 @@ pub val flt-max     = 0x1.F_FFFF_FFFF_FFFFp+1023 // 1.79769313486231570815e+308
 // Smallest positive normalized float64 value
 pub val flt-min     = 0x1.0p-1022 // 2.22507385850720138309e-308
 
-// Smallest positive subnormal value (i.e. [``DBL_TRUE_MIN``](http://en.cppreference.com/w/cpp/types/climits))
+// Smallest positive subnormal value (i.e. [``DBL_TRUE_MIN``](https://en.cppreference.com/w/cpp/types/climits))
 pub val flt-true-min= 0x1.0p-1074 // 4.9406564584124654418e-324
 
 // Machine epsilon: the difference between 1.0 and the next representable `:float64` value.
@@ -91,6 +92,177 @@ pub val posinf : float64 = make-posinf()
 
 // Negative infinity
 pub val neginf : float64 = make-neginf()
+
+
+// ---------------------------------------
+// Basic operations
+// ----------------------------------------
+
+// Are two floating point number equal?
+pub inline fip extern (==)(x : float64, y : float64) : bool
+  inline "(#1 == #2)"
+  js inline "(#1 === #2)"
+
+// Are two floating point number not equal?
+pub inline fip extern (!=)(x : float64, y : float64) : bool
+  inline "(#1 != #2)"
+  js inline "(#1 !== #2)"
+
+// Is the first floating point number smaller or equal to the second?
+pub inline fip extern (<=)( x : float64, y : float64) : bool
+  inline "(#1 <= #2)"
+
+// Is the first floating point number greater or equal to the second?
+pub inline fip extern (>=)( x : float64, y : float64) : bool
+  inline "(#1 >= #2)"
+
+// Is the first floating point number smaller than the second?
+pub inline fip extern (<)( x : float64, y : float64) : bool
+  inline "(#1 < #2)"
+
+// Is the first floating point number greater than the second?
+pub inline fip extern (>)( x : float64, y : float64) : bool
+  inline "(#1 > #2)"
+
+// Add two floating point numbers.
+pub inline fip extern (+)( x : float64, y : float64) : float64
+  inline "(#1 + #2)"
+
+// Subtract two floating point numbers.
+pub inline fip extern (-)( x : float64, y : float64) : float64
+  inline "(#1 - #2)"
+
+// Multiply two floating point numbers.
+pub inline fip extern (*)( x : float64, y : float64) : float64
+  inline "(#1 * #2)"
+
+// Divide two floating point numbers.
+pub inline fip extern (/)( x : float64, y : float64) : float64
+  inline "(#1 / #2)"
+
+// Modulus of two floating point numbers.
+pub inline fip extern (%)( x : float64, y : float64) : float64
+  c inline "fmod(#1,#2)"
+  inline "(#1 % #2)"
+
+// Is the value negative?
+pub fip fun is-neg( d : float64 ) : bool
+  d < 0.0
+
+// Is the value positive?
+pub fip fun is-pos( d : float64 ) : bool
+  d > 0.0
+
+// Is the value zero?
+pub fip fun is-zero( d : float64 ) : bool
+  d == 0.0
+
+// Compare the argument to zero.
+pub fip fun sign( d : float64 ) : order
+  if d < 0.0 then Lt elif d > 0.0 then Gt else Eq
+
+// Negate a `:float64`.
+pub inline fip extern (~)( f : float64 ) : float64
+  inline "(-#1)"  // inline so `~0.0` becomes negative zero
+
+// convert a `:float64` to an `:int` using `round` to round to its nearest integer.
+// (rounding to an even number on a tie)
+// Returns `0` if the argument is not `finite?`.
+pub inline extern int( f : float64 ) : int
+  c  "kk_integer_from_double"
+  cs "Primitive.IntDouble"
+  js "$std_core_types._int_double"
+
+// Returns the value `f`  raised to the power `p` .
+pub inline fip extern (^)( f : float64, p : float64) : float64
+  c inline "pow(#1,#2)"
+  cs "Math.Pow"
+  js "Math.pow"
+
+// Return the absolute value of a `:float64` `f`
+pub inline fip extern abs( f : float64 ) : float64
+  c inline "kk_double_abs(#1)"
+  cs "Math.Abs"
+  js "Math.abs"
+
+// Convert an integer to a `:float64`. May return `nan` if the integer is too large to represent as a `:float64`.
+pub inline fip extern float64( i : int) : float64
+  c  "kk_integer_as_double"
+  cs "Primitive.IntToDouble"
+  js "$std_core_types._int_to_double"
+
+// Convert an integer to a `:float32`. May return `nan` if the integer is too large to represent as a `:float32`.
+pub inline fip extern float32( i : int) : float32
+  c  "kk_integer_as_float"
+  cs "Primitive.IntToFloat"
+  js "$std_core_types._int_to_float"
+
+// Convert an 64-bit integer to a `:float64`.
+pub fip fun int64/float64( i : int64 ) : float64
+  i.int.float64
+
+
+
+// Returns the smallest of two floats
+pub fip fun min( x : float64, y : float64 ) : float64
+  if x <= y then x else y
+
+// Returns the largest of two floats
+pub fip fun max( x : float64, y : float64 ) : float64
+  if x >= y then x else y
+
+// Show a `:float64` as a string.
+// If `d >= 1.0e-5` and `d < 1.0e+21`, `show-fixed` is used and otherwise `show-exp`.
+// Default `precision` is `-17`.
+pub fun show( d : float64, precision : int = -17 ) : string
+  val dabs = d.abs
+  if dabs >= 1.0e-5 && dabs < 1.0e+21
+    then show-fixed(d,precision)
+    else show-exp(d,precision)
+
+// Show a `:float64` fixed-point notation.
+// The optional `precision` (= `-2`) specifies the maximum precision.
+// If `>=0` it specifies the number of digits behind the dot (up to `20` max).
+// If negative, then at most the absolute value of `precision` digits behind the dot are used.
+// This may still show a number in exponential notation if the it is too small or large,
+// in particular, for  a `d` where `d > 1.0e21` or `d < 1.0e-15`, or if
+// `precision.abs > 17`, the `show-exp` routine is used.
+pub fun show-fixed( d : float64, precision : int = -2 ) : string
+  val dabs = d.abs
+  if dabs < 1.0e-15 || dabs > 1.0e+21
+    then show-exp(d,precision)
+    else show-fixedx(d, precision.int32)
+
+extern show-fixedx( d : float64, prec : int32 ) : string
+  c  "kk_double_show_fixed"
+  cs "Primitive.DoubleShowFixed"
+  js "_double_show_fixed"
+
+// Show a `:float64` in exponential (scientific) notation.
+// The optional `precision` (= `-17`) specifies the precision.
+// If `>=0` it specifies the number of digits behind the dot (up to `17` max).
+// If negative, then at most the absolute value of `precision` digits behind the dot are used.
+pub fun show-exp( d : float64, precision : int = -17 )
+  show-expx(d,precision.int32)
+
+extern show-expx( d : float64, prec : int32 ) : string
+  c  "kk_double_show_exp"
+  cs "Primitive.DoubleShowExp"
+  js "_double_show_exp"
+
+
+// Returns the smallest element of a list of floats (or `0` for the empty list)
+pub fun minimum( xs : list<float64> ) : float64
+  match xs
+    Nil -> 0.0
+    Cons(x,xx) -> xx.foldl( x, min )
+
+// Returns the largest element of a list of floats (or `0` for the empty list)
+pub fun maximum( xs : list<float64> ) : float64
+  match xs
+    Nil -> 0.0
+    Cons(x,xx) -> xx.foldl( x, max )
+
 
 //-----------------------------------------
 // NaN, Infinity
@@ -161,7 +333,7 @@ pub fun is-subnormal( d :float64 ) : bool
 pub inline extern round( d : float64 ) : float64
   c  "kk_double_round_even"
   cs inline "Math.Round(#1,MidpointRounding.ToEven)"
-  js "$std_core._double_round_even"
+  js "$std_core_types._double_round_even"
 
 // Return the largest integer equal or less than `d`
 pub inline extern floor( d : float64 ) : float64
@@ -211,12 +383,12 @@ pub fun round-to-prec( d : float64, prec : int  ) : float64
 
 
 // Round a `:float64` to a `:float32`
-pub extern float32( f : float64 ) : float32
+pub extern float64/float32( f : float64 ) : float32
   c inline "(float)(#1)"
-  js "$std_core._double_to_float"
+  js "$std_core_types._double_to_float"
 
 // Extend a `:float32` to a `:float64`
-pub extern float64( f : float32 ) : float64
+pub extern float32/float64( f : float32 ) : float64
   c inline "(double)(#1)"
   js inline "(#1)"
 
@@ -479,7 +651,7 @@ pub fun midpoint( x : float64, y : float64 ) : float64
 
 
 // Linear interpolation, calculating `x + t*(y - x)` but avoids troublesome edge cases.
-// Follows the C++20 [specification](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/p0811r3.html).
+// Follows the C++20 [specification](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/p0811r3.html).
 // In particular, if `x.is-finite && y.is-finite`, then:
 // - exact: `lerp(x,y,0.0) == x` and  `lerp(x,y,1.0) == y`
 // - monotonic: if `x <= y` and `t1 <= t2`, then `cmp( lerp(x,y,t1), lerp(x,y,t2) ) <= Eq` (and other cases)
@@ -565,7 +737,7 @@ fun pdecdouble() : parse float64
   val man  = digits()
   val frac = optional("", { char('.'); digits0() }).trim-right("0")
   val exp : int = optional( 0, { one-of("eE"); pint() })
-  //val m : int = (man ++ frac).parse-int-default(0)
+  //val m : int = (man ++ frac).parse-int.default(0)
   //val e : int = exp - frac.count
   //m.float64 * exp10(e.float64)
   cur.string.prim-parse-float64  // more precision than simple multiply

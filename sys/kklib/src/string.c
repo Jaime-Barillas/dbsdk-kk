@@ -701,7 +701,7 @@ kk_string_t kk_string_from_chars(kk_vector_t v, kk_context_t* ctx) {
     len += kk_utf8_len(kk_char_unbox(cs[i], KK_BORROWED, ctx));
   }
   uint8_t* p;
-  kk_string_t s = kk_unsafe_string_alloc_buf(len + 1, &p, ctx);
+  kk_string_t s = kk_unsafe_string_alloc_buf(len, &p, ctx); // allocation already handles the len+1 and terminating 0
   for (kk_ssize_t i = 0; i < n; i++) {
     kk_ssize_t count;
     kk_utf8_write(kk_char_unbox(cs[i], KK_BORROWED, ctx), p, &count);
@@ -981,4 +981,13 @@ kk_string_t kk_show_any(kk_box_t b, kk_context_t* ctx) {
         return kk_string_alloc_dup_valid_utf8(buf, ctx);
       }
     }
+}
+
+
+kk_string_t  kk_string_join(kk_vector_t v, kk_context_t* ctx) {
+  return kk_string_join_with(v, kk_string_empty(), ctx);
+}
+
+kk_string_t  kk_string_join_with(kk_vector_t v, kk_string_t sep, kk_context_t* ctx) {
+  return kk_unsafe_bytes_as_string_unchecked(kk_bytes_join_with(v, sep.bytes, ctx));
 }

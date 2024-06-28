@@ -77,17 +77,17 @@ static inline kk_intf_t kk_box_to_value(kk_box_t b, int extra_shift) {
 
 
 // query
-static inline bool kk_box_is_ptr(kk_box_t b) {
+static inline bool kk_decl_const kk_box_is_ptr(kk_box_t b) {
   return kk_is_ptr(b.box);
 }
 
-static inline bool kk_box_is_value(kk_box_t b) {
+static inline bool kk_decl_const kk_box_is_value(kk_box_t b) {
   return kk_is_value(b.box);
 }
 
 
 // Are two boxed representations equal?
-static inline bool kk_box_eq(kk_box_t b1, kk_box_t b2) {
+static inline bool kk_decl_const kk_box_eq(kk_box_t b1, kk_box_t b2) {
   return (b1.box == b2.box);
 }
 
@@ -95,7 +95,7 @@ static inline bool kk_box_eq(kk_box_t b1, kk_box_t b2) {
 #define kk_box_null_init     kk_value_null
 
 // We cannot store NULL as a pointer (`kk_ptr_t`); use `kk_box_null()` instead
-static inline kk_box_t kk_box_null(void) {
+static inline kk_decl_const kk_box_t kk_box_null(void) {
   kk_box_t b = { kk_box_null_init };
   return b;
 }
@@ -252,6 +252,7 @@ static inline int8_t kk_int8_unbox(kk_box_t v, kk_borrow_t borrow, kk_context_t*
   return (int8_t)(i);
 }
 static inline kk_box_t kk_int8_box(int8_t i, kk_context_t* ctx) {
+  kk_unused(ctx);
   return kk_intf_box(i);
 }
 
@@ -465,6 +466,7 @@ static inline kk_box_t* kk_internal_ptr_unbox(kk_box_t b, kk_context_t* ctx) {
 }
 
 static inline kk_box_t kk_internal_ptr_null(kk_context_t* ctx) {
+  kk_unused(ctx);
   return kk_box_null();
 }
 

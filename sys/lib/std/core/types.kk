@@ -1,50 +1,67 @@
 /*---------------------------------------------------------------------------
-  Copyright 2012-2021, Microsoft Research, Daan Leijen.
+  Copyright 2012-2024, Microsoft Research, Daan Leijen.
 
   This is free software; you can redistribute it and/or modify it under the
   terms of the Apache License, Version 2.0. A copy of the License can be
   found in the LICENSE file at the root of this distribution.
 ---------------------------------------------------------------------------*/
 
-/* Core types.
+/* Primitive types and functions.
 
    This module is implicitly imported and all functions and types
    are always available.
    These types are required to be defined for the compiler
    to work correctly (i.e. types like `:int` or `:div`)
+
+   The _kinds_ of types are all builtin:
+
+   * `V`   value types (i.e. the star kind)
+   * `E`   effect rows (`<div,exn|e>`)
+   * `X`   a single effect (`div`, `exn`, `parse`, etc.), also called atomic effect
+   * `H`   heap types (always a phantom type without actual values)
+   * `HX`  a short-hand for user defined effect handlers of kind `(E,V) -> V`
+
 */
 module std/core/types
 
+pub infixr 80  (^)
+pub infixl 70  (*), (%), (/), cdiv, cmod
 pub infixr 60  (++)
+pub infixl 60  (+), (-)
 pub infixr 55  (++.)
+pub infix  40  (!=), (==), (<=), (>=), (<), (>)
 pub infixr 30  (&&)
 pub infixr 20  (||)
+// prefix     (!), (-)
 
-// build: 124
+
+// build: 131
 
 // ----------------------------------------------------------------------------
 // Core types
 // ----------------------------------------------------------------------------
 
 // An arbitrary precision signed integer.
+// See `module std/core/int` for integer operations.
 pub type int
 
 // A 64-bit IEEE 754 double precision floating point value.
-// See also `module std/num/float64` for more operations on `:float64`s.
+// See `module std/num/float64` for operations on `:float64`s.
 pub value type float64
 
 // A unicode character.
 // Characters are unicode _codepoint_\/s.
 // This is different from a unicode _grapheme_ which represents a single displayed
 // symbol and can consists of multiple codepoints due to combining characters and marks.
-// (see also the `module std/text/unicode` module).
+// (see also `module std/core/char` and the `module std/text/unicode` module).
 pub value type char
 
 // A string is a sequence of unicode character points (`char`).
 // The encoding of a string is internal and there
 // is no constant-time indexing of characters in a string.
 // Use the `:sslice` type for efficient matching and retrieving
-// sub-strings from string.
+// sub-strings from string. See `module std/core/string` and
+// `module std/core/sslice` for string operations.
 pub type string
 
 // A 8-bit signed integer (represented in two's complement).
@@ -80,27 +97,20 @@ pub value type intptr_t
 // Provides currently no operations and currently only used for storage and for interaction with external code.
 pub value type float32
 
-// The type of immutable arrays is called `:vector`.
+// The type of immutable polymorphic arrays is called `:vector`.
+// See `module std/core/vector` for vector operations.
 pub type vector<a>
 
-// An any type. Used for external calls
+// An any type. Used for external calls.
 pub type any
 
-// Internal type used for in-place update of unique pattern matches
-pub type reuse
+// Internal type used for in-place update of unique pattern matches.
+pub type @reuse
 
-pub extern no-reuse() : reuse
+pub extern @no-reuse() : @reuse
   c inline  "NULL"
   js inline "null"
 
-/* the kinds of types are all built-in:
-V     value types (i.e. the star kind)
-E     effect rows (`<div,exn|e>`)
-X     a single effect (`div`, `exn`, `parse`, etc.), also called atomic effect
-HX    a handled effect type; use `handled` to lift it to an `X`
-HX1   a linear handled effect type; use `handled1` to lift it to an `X`
-H     heap types (always a phantom type without actual values)
-*/
 
 // The _total_ effect represents the absence of any effect.
 // Usually written as `<>`
@@ -113,7 +123,7 @@ pub type effect-extend :: (X,E) -> E
 // The divergence effect: a divergent function may not terminate.
 pub type div :: X
 
-// The non-determism effect.
+// The non-determinism effect.
 pub type ndet :: X
 
 // The alloc effect signifies a function may allocate in a heap `:h`
@@ -132,10 +142,21 @@ pub alias st<h> = <read<h>, write<h>, alloc<h>>
 pub type global :: H
 
 // Handled effects are lifted to an atomic effect using the `:handled` type constructor
+// All user defined effects are `:handled` since they require a handler to be dismissed.
+// In contrast, some built-in effects, like `:div` or `:st` do not require a handler
+// as these are handled by the system.
+// In particular, the runtime evidence vector only contains `:handled` (and `:handled1`) effects.
 pub type handled    :: HX -> X;
 
 // Linear effects are lifted to an atomic effect using the `:handled1` type constructor
-pub type handled1   :: HX1 -> X;
+pub type handled1   :: HX -> X;
+
+// Named effects are lifted to an atomic effect with the `:nhandled` type constructor.
+// In contrast to `:handled` effects, these effects are not passed in the evidence vector.
+pub type nhandled    :: HX -> X;
+
+// Linear named effects are lifted to an atomic effect using the `:nhandled1` type constructor
+pub type nhandled1   :: HX -> X;
 
 
 // ----------------------------------------------------------------------------
@@ -170,20 +191,52 @@ pub struct tuple5<a,b,c,d,e>(fst:a,snd:b,thd:c,field4:d,field5:e)
 
 // The `:maybe` type is used to represent either a value (`Just(x)`) or `Nothing`.
 // This type is often used to represent values that can be _null_.
+// See also `module std/core/maybe`.
 pub value type maybe<a>
+  // No result
   con Nothing
+  // A single result
   con Just( value : a )
 
 // The choice type represents one of two possible types `:a` or `:b`.
+// See also `module std/core/either`.
 pub value type either<a,b>
+  // Left result, usually used for errors.
   con Left( left : a )
+  // Right result, usually used for success.
   con Right( right : b )
 
-// An enumeration to represent order
+// An enumeration to represent order: `Lt`, `Eq`, or `Gt`.
+// See also `module std/core/order`.
 pub type order
+  // lower-than
   Lt
+  // equal
   Eq
+  // greater-than
   Gt
+
+// Represent two elements in ascending order. This is used to
+// allow comparison on elements to be used linearly for `fip` functions.
+// See also `module std/core/order`
+pub value type order2<a>
+  // The elements compared lower-than, with `lt < gt`.
+  Lt2( lt: a, gt : a )
+  // The elements compared equal (with value `eq`).
+  Eq2( eq: a )
+  // The elements compared greater-than, with `lt < gt`.
+  Gt2( lt: a, gt : a )
+
+
+// The type of lists, which can be either empty (`Nil`) or an element followed
+// by a list (`Cons`).
+// See `module std/core/list` for operations on lists.
+pub type list<a>
+  // The empty list.
+  con Nil                  // note: must come first; see Core/Core.hs
+  // A ``head``  element followed by the ``tail``  of the list.
+  con Cons(head:a, tail : list<a> )
+
 
 // Explicitly box values using the `Box` constructor.
 pub value type box<a>
@@ -211,11 +264,11 @@ pub noinline fip fun keep( x : a ) : a
 pub fip fun id(x : a) : a
   x
 
-// Logical conjuction
+// Logical conjunction. This is compiled specially avoid evaluating the second argument if `x==False`.
 pub fip fun (&&)( x : bool, y : bool) : bool   // inlined in the compiler for short-circuit evaluation
   if x then y else False
 
-// Logical disjunction
+// Logical disjunction. This is compiled specially avoid evaluating the second argument if `x==True`.
 pub fip fun (||)( x : bool, y : bool) : bool  // inlined in the compiler for short-circuit evaluation
   if x then True else y
 
@@ -227,12 +280,36 @@ pub fip fun bool/(!)( b : bool ) : bool
 pub fip fun not( b : bool ) : bool
   if b then False else True
 
-// _Internal_: 32-bit zero, needed for markers in `std/core/hnd`.
-pub inline fip extern zero32() : int32
-  inline "0"
+
+extern import
+  js file "inline/types.js"
+
+// Convert an integer to an `:int32`. The number is _clamped_ to the maximal or minimum `:int32`
+// value if it is outside the range of an `:int32`.
+// Needed for control flow contexts in `module std/core/hnd`
+pub inline fip extern @make-int32( i : int) : int32
+  c  "kk_integer_clamp32"
+  cs "Primitive.IntToInt32"
+  js "$std_core_types._int_clamp32"
+
+
+// Convert an integer to an `:ssize_t`. The number is _clamped_ to the maximal or minimum `:ssize_t`
+// value if it is outside the range of an `:ssize_t`.
+// Needed for evidence indices in `module std/core/hnd`
+pub fip extern @make-ssize_t( i : int) : ssize_t
+  c  "kk_integer_clamp_ssize_t"
+  cs "Primitive.IntToInt32"
+  js "$std_core_types._int_clamp32"
+
+
+// Append two strings
+pub extern (++)(x : string, y : string) : string
+  c "kk_string_cat"
+  inline "(#1 + #2)"
+
 
 // _Internal_: generated by type inference and later refined into one of the `open` variants in `std/core/hnd`.
-pub noinline extern "@open"<e1::E,e2::E,a,b>( x : a ) : e2 b
+pub noinline extern @open<e1::E,e2::E,a,b>( x : a ) : e2 b
   inline "#1"
 
 
@@ -290,12 +367,24 @@ pub extern run : forall<e,a> ( action : forall<h> () -> <alloc<h>,read<h>,write<
   js inline "((#1)())"
 
 
+// Mask the state effect. This is more convenient than masking each `:read`, `:write`, and `:alloc` effect separately.
+pub inline extern mask-st : forall<a,h,e> (() -> e a) -> total (() -> <st<h>|e> a)
+  inline "#1"
+
+/*
+// Inject the local effect into a function effect.
+pub inline extern inject-local<a,h,e>( action : () -> e a ) : total (() -> <local<h>|e> a)
+  inline "#1"
+*/
+
 // ----------------------------------------------------------------------------
 // Local Variables
 // ----------------------------------------------------------------------------
 
-// A local variable `:var<s,a>` points to a value of type `:a` in local scope `:s`
+// A local heap effect.
 pub type local :: (H) -> X
+
+// A local variable `:local-var<s,a>` points to a value of type `:a` in local scope `:s`.
 pub type local-var :: (H,V) -> V
 
 // Allocate a fresh local with an initial value.
@@ -316,14 +405,13 @@ pub inline extern local-get : forall<a,s,e> (v: local-var<s,a>) -> <local<s>|e> 
   cs inline "#1.Value";
   js inline "((#1).value)";
 
-
-inline extern unsafe-no-local-cast : forall<a,e> ( action : forall<h> () -> <local<h>|e> a ) -> (() -> e a)
-  inline "#1"
-
 // _Internal_: if local mutation is unobservable, the `:local` effect can be erased by using the `local-scope` function.
 // See also: _State in Haskell, by Simon Peyton Jones and John Launchbury_.
 pub inline fun local-scope<a,e>( action : forall<h> () -> <local<h> | e> a) : e a
   unsafe-no-local-cast(action)()
+
+inline extern unsafe-no-local-cast : forall<a,e> ( action : forall<h> () -> <local<h>|e> a ) -> (() -> e a)
+  inline "#1"
 
 /*
 inline extern local-scope : forall<e,a> ( action : forall<h> () -> <local<h> | e> a) -> e a
@@ -333,31 +421,22 @@ inline extern local-scope : forall<e,a> ( action : forall<h> () -> <local<h> | e
 */
 
 // _Internal_: used to pass locals by reference.
-pub inline extern byref(loc : a) : a
+pub inline extern @byref(loc : a) : a
   inline "#1"
+
 
 // ----------------------------------------------------------------------------
-// Unsafe: todo: move to separate module
+// Used during codegen
 // ----------------------------------------------------------------------------
 
-// _Unsafe_. Mark a function parameter as decreasing to suppress the non-termination effect (`:div`).
-pub inline fip extern unsafe-decreasing( x : a ) : a
+// Magic casting to the `:any` type.
+pub inline extern @toany( x : a ) : any
   inline "#1"
+  cs inline "(object)(#1)"
 
-inline fip extern unsafe-total-cast : forall<e,a> ( action : () -> e a ) -> (() -> a)
-  inline "#1"
-
-// _Unsafe_. This function calls a function and pretends it did not have any effect at all.
-pub fun unsafe-total( action : () -> e a ) : a
-  unsafe-total-cast( action )()
-
-// _Unsafe_. This function pretends the give action was deterministic
-pub fun unsafe-no-ndet( action : () -> <ndet|e> a ) : e a
-  unsafe-total-cast( action )()
-
-// _Unsafe_. This function pretends the give action is terminating
-pub fun unsafe-no-div( action : () -> <div|e> a ) : e a
-  unsafe-total-cast( action )()
+// Internal: used for value effects
+pub type @valueop<e::E,a::V>
+  con @Valueop
 
 
 // ----------------------------------------------------------------------------
@@ -365,12 +444,12 @@ pub fun unsafe-no-div( action : () -> <div|e> a ) : e a
 // ----------------------------------------------------------------------------
 
 // _Internal_: Optional is used by the compiler to pass optional arguments.
-// It is usually displayed as `:?a` for some type `:a`.
-pub value type optional<a>
+// It is usually displayed as `: ? tp` for some type `:tp`.
+pub value type @optional<a>
   // The `Optional` constructor is used when an optional argument is given.
-  con Optional( value : a )
+  con @Optional( value : a )
   // `None` is used when an optional argument is not provided.
-  con None   // note: must come second; see Core/Core.hs
+  con @None   // note: must come second; see Core/Core.hs
 
 
 // ----------------------------------------------------------------------------
@@ -380,64 +459,69 @@ pub value type optional<a>
 // ----------------------------------------------------------------------------
 
 extern import
-  c header-end-file "types-cctx-inline.h"
-  js file "types-cctx-inline.js"
+  c header-end-file "inline/types-cctx.h"
+  js file "inline/types-cctx.js"
 
+extern import
+  c file "inline/types-cctx.c"
 
 // _Internal_. Internal type for constructor contexts.
 // Holds the address to a field of type `:a` in a constructor.
-pub type field-addr<a>
+pub type @field-addr<a>
 
 // _Internal_. Internal function name for field addresses.
-pub fip extern "@field-addr-of"( x : a, conname : string, fieldname : string ) : field-addr<a>
+pub fip extern @field-addr-of( x : a, conname : string, fieldname : string ) : @field-addr<a>
   c inline "kk_field_addr_null()"
   inline ""  // compiled specially
 
 // First-class constructor context (for _tail recursion modulo cons_ (TRMC) optimization).
+// See also ``samples/syntax/contexts`` for further examples.
 abstract value type cctx<a,b>
-  con "@Cctx"( res : a, holeptr : field-addr<b> )
+  con @Cctx( res : a, holeptr : @field-addr<b> )
 
-// First-class constructor context.
+// A first-class constructor context where the hole is of the same type as the root of the structure.
 pub alias ctx<a> = cctx<a,a>
 
 // _Internal_. Create a hole for a context
-pub inline fip extern "@cctx-hole-create"() : a
+pub inline fip extern @cctx-hole-create() : a
   c  inline "kk_cctx_hole()"
   js inline "undefined"
 
 // _Internal_. Create an initial non-empty context.
-pub inline fip extern "@cctx-create"( x : a, xhole : field-addr<b> ) : cctx<a,b>
+pub inline fip extern @cctx-create( x : a, xhole : @field-addr<b> ) : cctx<a,b>
   c   "kk_cctx_create"
-  js  "_cctx_create"
+  js  "$std_core_types._cctx_create"
 
-// _Internal_. Extend a constructor context with a non-empty context
-pub inline fip extern "@cctx-extend"( c : cctx<a,b>, x : b, xhole : field-addr<c> ) : cctx<a,c>
-  c inline "kk_cctx_extend(#1,#2,#3,false /*is-linear*/,kk_context())"
-  js "_cctx_extend"
+// _Internal_. Extend a constructor context with a guaranteed non-empty context
+pub inline fip extern @cctx-extend( c : cctx<a,b>, x : b, xhole : @field-addr<c> ) : cctx<a,c>
+  c inline "kk_cctx_extend(#1,#2,#3,kk_context())"
+  js "$std_core_types._cctx_extend"
 
-// _Internal_. Compose a constructor context with a non-empty context
-pub inline fip extern "@cctx-compose-extend"( c1 : cctx<a,b>, c2 : cctx<b,c> ) : cctx<a,c>
-  c inline "kk_cctx_extend(#1,#2.res,#2.holeptr,false /*is-linear*/,kk_context())"
-  js "_cctx_compose"
+// _Internal_. Compose a constructor context with a guaranteed non-empty context
+pub inline fip extern @cctx-compose-extend( c1 : cctx<a,b>, c2 : cctx<b,c> ) : cctx<a,c>
+  c inline "kk_cctx_extend(#1,#2.res,#2.holeptr,kk_context())"
+  js "$std_core_types._cctx_compose"
 
-// Apply a constructor context
-pub inline fip extern index( c : cctx<a,b>, x : b ) : a
-  c inline "kk_cctx_apply(#1,#2,false /*is-linear*/,kk_context())"
-  js "_cctx_apply"
-
-// Apply a constructor context.
-pub inline fip extern (++.)( c : cctx<a,b>, x : b ) : a
-  c inline "kk_cctx_apply(#1,#2,false /*is-linear*/,kk_context())"
-  js "_cctx_apply"
+// Apply a constructor context to its final value (of type `:b`), which is
+// put into the hole of the context, and returns the root of the resulting structure `:a`.
+// This is a constant time operation for unique contexts.
+//
+// `(ctx Cons(1,_)) ++ (ctx Cons(_,Nil)) ++. 3 == [1,3]`
+pub inline fip extern cctx/(++.)( c : cctx<a,b>, x : b ) : a
+  c inline "kk_cctx_apply(#1,#2,kk_context())"
+  js "$std_core_types._cctx_apply"
 
 // Compose two constructor contexts.
-pub inline fip extern (++)( c1 : cctx<a,b>, c2 : cctx<b,c> ) : cctx<a,c>
-  c inline "kk_cctx_compose(#1,#2,false /*is-linear*/,kk_context())"
-  js "_cctx_compose"
+// This is a constant time operation for unique contexts.
+//
+// `(ctx Cons(1,_)) ++ (ctx Cons(2,_)) ++. Nil == [1,2]`
+pub inline fip extern cctx/(++)( c1 : cctx<a,b>, c2 : cctx<b,c> ) : cctx<a,c>
+  c inline "kk_cctx_compose(#1,#2,kk_context())"
+  js "$std_core_types._cctx_compose"
 
-// Create an empty context
-pub inline fip extern cctx-empty() : cctx<a,a>
+// Create an empty context. Usually written directly as an empty context `ctx _`.
+pub inline fip extern cctx/empty() : cctx<a,a>
   c  "kk_cctx_empty"
-  js "_cctx_empty"
+  js "$std_core_types._cctx_empty"
 
 

@@ -409,4 +409,48 @@ bool kk_bytes_contains(kk_bytes_t b, kk_bytes_t sub, kk_context_t* ctx) {
   return (kk_bytes_index_of1(b, sub, ctx) > 0);
 }
 
+kk_bytes_t  kk_bytes_join(kk_vector_t v, kk_context_t* ctx) {
+  return kk_bytes_join_with(v, kk_bytes_empty(), ctx);
+}
+
+kk_bytes_t  kk_bytes_join_with(kk_vector_t v, kk_bytes_t sep, kk_context_t* ctx) {
+  kk_bytes_t  res = kk_bytes_empty();
+  kk_ssize_t  totallen = 0;
+  kk_ssize_t  copied = 0;
+  kk_ssize_t  seplen;
+  const char* sepbuf = kk_bytes_cbuf_borrow(sep, &seplen, ctx); 
+  kk_ssize_t  n = kk_vector_len_borrow(v, ctx);
+  if (n <= 0) goto end;
+
+  // find total required length
+  // TODO: check totallen overflow
+  for (kk_ssize_t i = 0; i < n; i++) {
+    kk_bytes_t elem = kk_bytes_unbox(kk_vector_at_borrow(v, i, ctx));
+    totallen += kk_bytes_len_borrow(elem, ctx);
+  }
+  totallen += (n - 1) * kk_bytes_len_borrow(sep, ctx);
+
+  // copy into the new buffer
+  char* resbuf;
+  res = kk_bytes_alloc_cbuf(totallen, &resbuf, ctx);
+  for (kk_ssize_t i = 0; i < n; i++) {
+    kk_bytes_t elem = kk_bytes_unbox(kk_vector_at_borrow(v, i, ctx));
+    kk_ssize_t len;
+    const char* cbuf = kk_bytes_cbuf_borrow(elem, &len, ctx);
+    kk_memcpy(resbuf + copied, cbuf, len);
+    copied += len;
+    if (i < n - 1) {
+      kk_memcpy(resbuf + copied, sepbuf, seplen);
+      copied += seplen;
+    }
+  }
+  kk_assert(copied == totallen);
+
+  // return
+end:
+  kk_vector_drop(v, ctx);
+  kk_bytes_drop(sep, ctx);
+  return res;
+}
+
 

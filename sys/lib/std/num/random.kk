@@ -20,7 +20,7 @@ extern import
 pub effect random
   fun random-int32() : int32
 
-pub fun "@default-random"(action : () -> <random,ndet|e> a) : <ndet|e> a
+pub fun @default-random(action : () -> <random,ndet|e> a) : <ndet|e> a
   strong-random(action)
 
 // Pick random numbers from a the best strong random source in the OS.
@@ -38,7 +38,7 @@ pub fun strong-random(action : () -> <random,ndet|e> a) : <ndet|e> a
 // of 2^32. It has a 96-bit state, so the average period is 2^127.
 // The chance of a cycle of less than 2^(32+max(96-k,0)) is 2^-(32+k),
 // (e.g. the chance of a cycle of less than 2^48 is 2^-80).
-// <http://pracrand.sourceforge.net/RNG_engines.txt>
+// <https://pracrand.sourceforge.net/RNG_engines.txt>
 abstract value struct sfc(x:int32, y:int32, z:int32, cnt:int32)
 
 pub value struct sfc-result( rnd : int32, rstate : sfc )
@@ -54,7 +54,7 @@ pub fun sfc-step( sfc : sfc ) : sfc-result
 
 pub fun sfc-init32( seed1 : int32, seed2 : int32 ) : sfc
   val sfc0 = Sfc(0.int32, seed1, seed2, 1.int32)
-  fold-int32( 0.int32, 12.int32, sfc0, fn(_,s){ sfc-step(s).rstate } )  // step 12 times
+  fold-int32( 12.int32, sfc0, fn(_,s){ sfc-step(s).rstate } )  // step 12 times
 
 
 pub fun sfc-init( seed : int ) : sfc
