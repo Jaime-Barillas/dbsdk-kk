@@ -110,3 +110,15 @@ returning a non-zero value or specifying that there are zero environment vars.
 ### environ_get
 Used by emscripten setup code. With `environ_sizes_get` defined to return an
 env count of zero, the call to this function should be skipped.
+
+## Generating an ISO 9660 Image on Linux
+mkisofs/genisoimage is needed. On fedora, install the genisoimage package. Use
+the following command:
+```
+# Or genisoimage
+#    -iso-level 2: Try also -l, allow file names longer than 8+3. Needed since
+#                  the .wasm file extension is longer than 3 chars.
+#    -V: Set volume label (effectively the game name.)
+#    -no-pad: Used for bootable images not games. Smaller file sizes.
+mkisofs -iso-level 2 -V <volume-label> -no-pad -o <out-file> <folder-root>
+```
