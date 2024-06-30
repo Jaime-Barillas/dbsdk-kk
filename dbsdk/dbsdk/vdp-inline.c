@@ -16,6 +16,19 @@ static void dbsdk_vdp__tick_func(void) {
   );
 }
 
+#define KK_CUSTOM_INIT kk_dbsdk__custom_init
+#define KK_CUSTOM_DONE kk_dbsdk__custom_done
+
+static void kk_dbsdk__custom_init(kk_context_t *ctx) {
+  TICK_FUNCTION = kk_function_null(ctx);
+}
+
+static void kk_dbsdk__custom_done(kk_context_t *ctx) {
+  if (!kk_function_is_null(TICK_FUNCTION, ctx)) {
+    kk_function_drop(TICK_FUNCTION, ctx);
+  }
+}
+
 
 
 kk_unit_t kk_dbsdk_vdp__vdp_clearColor(kk_box_t color_boxed_ptr, kk_context_t *ctx) {
