@@ -15,9 +15,10 @@
 
 (defn -main [& args]
   ;; Prep Work
-  (let [version "1.0.33"
+  (let [version "1.0.37"
         os (get-os)
-        download-url (str "https://github.com/WebAssembly/wabt/releases/download/" version "/wabt-" version "-" os ".tar.gz")
+        os-download-identifier (if (= os "ubuntu") (str os "-20.04") os)
+        download-url (str "https://github.com/WebAssembly/wabt/releases/download/" version "/wabt-" version "-" os-download-identifier ".tar.gz")
         download-dir (-> self-path fs/parent fs/parent (fs/path "tools" "wabt"))
         archive (fs/path download-dir "wabt.tar.gz")
         extracted-dir (fs/path download-dir (str "wabt-" version))]
