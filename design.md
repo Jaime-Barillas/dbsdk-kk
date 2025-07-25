@@ -41,10 +41,9 @@ official Rust CLI.
 ## Compiling Koka for DreamBox
 
 Compiling Koka for DreamBox (via the cli) goes through a 5-step process:
-1. **Compile the Koka to Wasm** - Koka is compiled to the `wasm32` target with
-   a (ever so lightly) modified kklib and a minimum subset of the standard
-   library. The path to the DBSDK wrapper and the custom WASI functions are
-   provided to the compiler.
+1. **Compile the Koka to Wasm** - Koka is compiled to the `wasm32` target.
+   The path to the DBSDK wrapper and the custom WASI functions are provided to
+   the compiler.
 2. **Convert the Wasm output to Wat format** - This is done via the `wasm2wat`
    tool from the WABT.
 3. **Patch the Wat file** - The only thing that needs to be done here is to
