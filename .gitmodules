@@ -1,4 +1,3 @@
-[submodule "koka"]
-	path = lib/koka
-	url = https://github.com/koka-lang/koka
-	branch = master
+[submodule "tools/emsdk"]
+	path = tools/emsdk
+	url = https://github.com/emscripten-core/emsdk.git
