@@ -8,8 +8,12 @@
 **.koka/
 **iso/
 
+.clj-kondo/
+.lsp/
+
 # cli symlinks
-cli/dbsdk/
-cli/sys/
-cli/tools/
-cli/wasi/
+cli/dbsdk
+cli/tools
+cli/wasi
+
+tools/wabt/
