@@ -33,5 +33,9 @@
   create-cli-links
   {:doc "Create directory links within the cli project to necessary tools/dirs"
    :task create-cli-links/-main}
+
+  test
+  {:doc "Run manual tests"
+   :task run-tests/-main}
  }
 }
